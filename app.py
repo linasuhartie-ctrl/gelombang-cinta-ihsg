@@ -1,3 +1,12 @@
+"""
+================================================================================
+ ULTRA WAVE MATRIX DASHBOARD (1000+ ASSETS)
+ Logic   : White Line (Structure) & Purple Line (Dominance)
+ Author  : Senior Quantitative Developer
+ Strategy: Golden Cross (Buy/Long) & Death Cross (Sell/Short)
+================================================================================
+"""
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -9,11 +18,10 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-st.set_page_config(page_title="Ultra Wave Matrix", page_icon="🔮", layout="wide")
-
 # ──────────────────────────────────────────────────────────────────────────────
-# DATASET: IHSG (~500) & CRYPTO (~500)
+# 0.  CONFIG & MEGA DATASET
 # ──────────────────────────────────────────────────────────────────────────────
+st.set_page_config(page_title="Ultra Wave Matrix 500", page_icon="🔮", layout="wide")
 
 IHSG_RAW = """
 AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO 
@@ -55,7 +63,7 @@ VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD
 WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX
 """
 
-# ~500 Ticker Crypto (Bybit/Binance Universe)
+# MEGA LIST: 500 Ticker Crypto (Top Market Cap & Trending Perps)
 CRYPTO_RAW = """
 BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP 
 TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA 
@@ -65,18 +73,22 @@ TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM
 AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI 
 MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG 
 HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT 
-BOME MEW MYRO WEN COQ KDA OSMO RETH LPT 1000SATS TIA ALT MANTA ONDO RIF 
-ORDI PENDLE NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE 
-EDU ID COMBO RDNT HIFI ARK MAV PUNDIX BEL FRONT C98 MTL BAKE REEF 
-ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ARK ICX OGN NKN 
+BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF 
+NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE 
+EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF 
+ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN 
 DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX 
-SYS SCR GFT QKC IOTX CTXC ONG DOCK MITH TFUEL GTC MLN BOND FOR 
-LINA DEGO EPS AUTO TKO TVK PERP QUICK ERN RAMP PHA BAR CITY 
+SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR 
+LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY 
 ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC 
+ZEN RARE CLV ALPHA FIS SPELL UTK CHESS ADX QI ACH 
+GHST DAR VOXEL SANTOS C98 RIF POND MDT CTKC GFT 
+HOOK BNX NMR PROS VIB AST OAX MDT DUSK PHB LSK 
+AMB ARDR LOOM SYS VGX REQ AKRO POLS TROY HARD 
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ENGINE
+# 1.  CALCULATION ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
@@ -85,8 +97,10 @@ def pandas_wma(series, window):
 
 def compute_waves(df):
     df = df.copy()
+    # Purple Line (Dominance)
     rsi_raw = ta.momentum.rsi(df['Close'], window=14)
     df['purple_line'] = ((rsi_raw - 50) * 2).ewm(span=3, adjust=False).mean()
+    # White Line (Structure)
     hh, ll = df['High'].rolling(20).max(), df['Low'].rolling(20).min()
     diff = (hh - ll).replace(0, 0.001)
     df['white_line'] = pandas_wma(((df['Close'] - ll) / diff) * 200 - 100, 8)
@@ -102,16 +116,19 @@ def fetch_data(ticker):
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# UI
+# 2.  APP INTERFACE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.sidebar.markdown("### 🗺️ Market Selection")
+    st.sidebar.markdown("### 🗺️ Market Explorer")
     market = st.sidebar.radio("Pilih Universe:", ["IHSG", "Crypto Perps"])
     
     st.sidebar.divider()
-    st.sidebar.header("⚙️ Matrix Filters")
-    strategy = st.sidebar.selectbox("Pilih Sinyal:", ["Level Garis Putih", "Crossing (Putih ↗ Ungu)"])
+    st.sidebar.header("⚙️ Strategy Filters")
+    strategy = st.sidebar.selectbox(
+        "Pilih Sinyal:", 
+        ["Level Garis Putih", "Golden Cross (Putih ↗ Ungu)", "Death Cross (Putih ↘ Ungu)"]
+    )
     
     if strategy == "Level Garis Putih":
         struct_range = st.sidebar.slider("Range White Line", -100, 100, (50, 100))
@@ -120,15 +137,15 @@ def main():
     min_vol = st.sidebar.slider(vol_label, 1, 1000, 10 if market == "IHSG" else 50)
 
     if market == "IHSG":
-        tickers = sorted(list(dict.fromkeys([t.strip() + ".JK" for t in IHSG_RAW.split()])))
+        tickers = sorted(list(set([t.strip() + ".JK" for t in IHSG_RAW.split()])))
     else:
-        tickers = sorted(list(dict.fromkeys([t.strip() + "-USD" for t in CRYPTO_RAW.split()])))
+        tickers = sorted(list(set([t.strip() + "-USD" for t in CRYPTO_RAW.split()])))
 
     if st.sidebar.button(f"🔍 Scan {len(tickers)} Assets"):
         results = []
         progress = st.progress(0)
         
-        with st.spinner(f"Analisis market sedang berjalan..."):
+        with st.spinner(f"Analisis {len(tickers)} aset sedang berjalan..."):
             for i, t in enumerate(tickers):
                 df = fetch_data(t)
                 if df is not None:
@@ -140,10 +157,20 @@ def main():
                     if turnover < min_vol: continue
                     
                     is_match = False
+                    trigger_msg = ""
+                    
                     if strategy == "Level Garis Putih":
-                        if struct_range[0] <= latest['white_line'] <= struct_range[1]: is_match = True
-                    else:
-                        if prev['white_line'] <= prev['purple_line'] and latest['white_line'] > latest['purple_line']: is_match = True
+                        if struct_range[0] <= latest['white_line'] <= struct_range[1]:
+                            is_match = True
+                            trigger_msg = f"Level: {latest['white_line']:.1f}"
+                    elif strategy == "Golden Cross (Putih ↗ Ungu)":
+                        if prev['white_line'] <= prev['purple_line'] and latest['white_line'] > latest['purple_line']:
+                            is_match = True
+                            trigger_msg = "Bullish Cross"
+                    elif strategy == "Death Cross (Putih ↘ Ungu)":
+                        if prev['white_line'] >= prev['purple_line'] and latest['white_line'] < latest['purple_line']:
+                            is_match = True
+                            trigger_msg = "Bearish Cross"
                     
                     if is_match:
                         results.append({
@@ -151,7 +178,8 @@ def main():
                             "Price": f"{latest['Close']:,.2f}" if market == "IHSG" else f"${latest['Close']:,.4f}",
                             "White Wave": round(latest['white_line'], 2),
                             "Purple Wave": round(latest['purple_line'], 2),
-                            "Turnover (M)": round(turnover, 2)
+                            "Signal": trigger_msg,
+                            "Vol (M)": round(turnover, 2)
                         })
                 progress.progress((i + 1) / len(tickers))
 
@@ -159,11 +187,12 @@ def main():
             res_df = pd.DataFrame(results).sort_values("White Wave", ascending=False)
             st.success(f"🔥 Ditemukan {len(res_df)} peluang potensial!")
             
-            def color_wave(val):
-                color = '#26a69a' if val > 0 else '#ef5350'
-                return f'color: {color}; font-weight: bold'
+            def color_signal(val):
+                if val == "Bullish Cross": return 'color: #26a69a; font-weight: bold'
+                if val == "Bearish Cross": return 'color: #ef5350; font-weight: bold'
+                return ''
 
-            st.dataframe(res_df.style.map(color_wave, subset=['White Wave']), use_container_width=True)
+            st.dataframe(res_df.style.map(color_signal, subset=['Signal']), use_container_width=True)
             
             st.divider()
             target = st.selectbox("Analisis Grafik:", res_df['Asset'])
