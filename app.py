@@ -1,3 +1,12 @@
+"""
+================================================================================
+ MHALIK - PREDICTIVE WAVE MATRIX (MEGA VERSION)
+ Project Name: MHALIK (Machine Health Analytics & Logic Integration Kit)
+ Features    : IHSG (800+ Assets), Crypto (500+ Assets), Multi-Timeframe,
+               Golden Cross & Death Cross Detection.
+================================================================================
+"""
+
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -10,7 +19,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 0. CONFIG & MEGA DATASET (HARDCODED UNTUK STABILITAS 100%)
+# 0. MEGA DATASET (100% STABILITY)
 # ──────────────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="MHALIK Wave Matrix", page_icon="🔮", layout="wide")
 
@@ -71,17 +80,14 @@ GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO
 TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE 
 FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB 
 AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR 
-BOND MOB MOVR SYN HIGH KP3R SNT MULTI GNS GMX WOO ZRX KNC LRC SUSHI 
-BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT 
-MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE 
-EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF ATA ALICE 
-PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN DENT KEY MFT DATA 
-VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX 
-CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK 
-QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE 
-FLOW MIR ANC RARE CLV ALPHA FIS CHESS QI GHST VOXEL BNX NMR VIB AST 
-OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR 
-BOND MOB MOVR SYN HIGH KP3R SNT MULTI
+BOND MOB MOVR SYN HIGH KP3R SNT MULTI VANRY PORTAL STRK JUP WIF PIXEL RON 
+PYTH MANTA ALT ONDO ZETA DYM AEVO METIS PUNDIX XVS CHR DAR SXP STEEM KMD 
+STRAX ADX ICX OGN NKN DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI 
+COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND 
+FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV 
+ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC RARE CLV ALPHA FIS CHESS 
+QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS 
+HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH KP3R SNT MULTI
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -89,21 +95,30 @@ BOND MOB MOVR SYN HIGH KP3R SNT MULTI
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
+    """Menghitung Weighted Moving Average (WMA)."""
     weights = np.arange(1, window + 1)
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
 def compute_waves(df):
+    """Menghitung Garis Putih & Ungu sesuai indikator MHALIK."""
     if df is None or len(df) < 30: return None
     df = df.copy()
+    
+    # Purple Line (Dominance) - RSI Based
     rsi_raw = ta.momentum.rsi(df['Close'], window=14)
     df['purple_line'] = ((rsi_raw - 50) * 2).ewm(span=3, adjust=False).mean()
+    
+    # White Line (Structure) - High/Low Range WMA Based
     hh, ll = df['High'].rolling(20).max(), df['Low'].rolling(20).min()
     diff = (hh - ll).replace(0, 0.001)
-    df['white_line'] = pandas_wma(((df['Close'] - ll) / diff) * 200 - 100, 8)
+    struct_raw = ((df['Close'] - ll) / diff) * 200 - 100
+    df['white_line'] = pandas_wma(struct_raw, 8)
+    
     return df
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_mtf_data(ticker, timeframe):
+    """Menarik data MTF dengan penanganan resample 4H."""
     try:
         if timeframe == "15m":
             df = yf.download(ticker, period="7d", interval="15m", progress=False, auto_adjust=True)
@@ -122,7 +137,7 @@ def fetch_mtf_data(ticker, timeframe):
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. UI & LOGIC
+# 2. UI LAYOUT & SCANNING
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
@@ -132,13 +147,16 @@ def main():
     
     st.sidebar.divider()
     st.sidebar.header("⚙️ Strategy Filters")
-    strategy = st.sidebar.selectbox("Sinyal:", ["Level Garis Putih", "Golden Cross (Putih ↗ Ungu)", "Death Cross (Putih ↘ Ungu)"])
+    strategy = st.sidebar.selectbox(
+        "Pilih Sinyal:", 
+        ["Level Garis Putih", "Golden Cross (Putih ↗ Ungu)", "Death Cross (Putih ↘ Ungu)"]
+    )
     
     if strategy == "Level Garis Putih":
         struct_range = st.sidebar.slider("Range White Line", -100, 100, (50, 100))
     
     vol_label = "Min Vol (Juta Unit)" if "IHSG" in market else "Min Daily Vol (Juta USD)"
-    min_vol = st.sidebar.slider(vol_label, 1, 1000, 10 if "IHSG" in market else 50)
+    min_vol = st.sidebar.slider(vol_label, 1, 1000, 10 if "IHSG" in market else 100)
 
     # Ticker loading
     if "IHSG" in market:
@@ -148,33 +166,35 @@ def main():
 
     st.sidebar.caption(f"Aset terdeteksi: {len(tickers)}")
 
-    if st.sidebar.button(f"🔍 Scan {len(tickers)} Assets ({timeframe})"):
+    if st.sidebar.button(f"🔍 Jalankan Scan {len(tickers)} Aset"):
         results = []
-        progress = st.progress(0)
+        progress_bar = st.progress(0)
         
-        with st.spinner(f"Analisis {len(tickers)} aset..."):
+        with st.spinner(f"Menganalisis {len(tickers)} aset... Mohon tunggu."):
             for i, t in enumerate(tickers):
                 df_raw = fetch_mtf_data(t, timeframe)
                 df = compute_waves(df_raw)
                 
                 if df is not None and len(df) >= 2:
                     latest, prev = df.iloc[-1], df.iloc[-2]
+                    
+                    # Volume Turnover Calculation
                     turnover = (latest['Close'] * latest['Volume']) / 1_000_000 if "Crypto" in market else latest['Volume'] / 1_000_000
                     
                     if turnover < min_vol: continue
                     
                     is_match = False
-                    trigger = ""
+                    trigger_msg = ""
                     
                     if strategy == "Level Garis Putih":
                         if struct_range[0] <= latest['white_line'] <= struct_range[1]:
-                            is_match, trigger = True, f"Level: {latest['white_line']:.1f}"
+                            is_match, trigger_msg = True, f"Level: {latest['white_line']:.1f}"
                     elif strategy == "Golden Cross (Putih ↗ Ungu)":
                         if prev['white_line'] <= prev['purple_line'] and latest['white_line'] > latest['purple_line']:
-                            is_match, trigger = True, "Bullish Cross"
+                            is_match, trigger_msg = True, "Bullish Cross"
                     elif strategy == "Death Cross (Putih ↘ Ungu)":
                         if prev['white_line'] >= prev['purple_line'] and latest['white_line'] < latest['purple_line']:
-                            is_match, trigger = True, "Bearish Cross"
+                            is_match, trigger_msg = True, "Bearish Cross"
                     
                     if is_match:
                         results.append({
@@ -182,35 +202,39 @@ def main():
                             "Price": f"{latest['Close']:,.2f}" if "IHSG" in market else f"${latest['Close']:,.4f}",
                             "White Wave": round(latest['white_line'], 2),
                             "Purple Wave": round(latest['purple_line'], 2),
-                            "Signal": trigger,
+                            "Signal": trigger_msg,
                             "Vol (M)": round(turnover, 2)
                         })
-                progress.progress((i + 1) / len(tickers))
+                
+                progress_bar.progress((i + 1) / len(tickers))
 
         if results:
             res_df = pd.DataFrame(results).sort_values("White Wave", ascending=False)
-            st.success(f"🔥 Ditemukan {len(res_df)} sinyal!")
+            st.success(f"🔥 Ditemukan {len(res_df)} sinyal potensial!")
             
             def color_sig(val):
                 if val == "Bullish Cross": return 'color: #26a69a; font-weight: bold'
                 if val == "Bearish Cross": return 'color: #ef5350; font-weight: bold'
                 return ''
+            
             st.dataframe(res_df.style.map(color_sig, subset=['Signal']), use_container_width=True)
             
             st.divider()
-            target = st.selectbox("Analisis Grafik:", res_df['Asset'])
+            target = st.selectbox("Pilih Aset untuk Grafik Detil:", res_df['Asset'])
             if target:
                 full_t = target + (".JK" if "IHSG" in market else "-USD")
                 df_p = compute_waves(fetch_mtf_data(full_t, timeframe))
+                
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05)
                 fig.add_trace(go.Candlestick(x=df_p.index, open=df_p['Open'], high=df_p['High'], low=df_p['Low'], close=df_p['Close'], name="Price"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White Line", line=dict(color='white', width=2)), row=2, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple Line", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White (Structure)", line=dict(color='white', width=2)), row=2, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple (Dominance)", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
                 for l, c in [(80, 'red'), (0, 'gray'), (-80, 'green')]: fig.add_hline(y=l, line_dash="dash", line_color=c, opacity=0.3, row=2, col=1)
-                fig.update_layout(template="plotly_dark", height=700, xaxis_rangeslider_visible=False, title=f"{target} - {timeframe}")
+                
+                fig.update_layout(template="plotly_dark", height=750, xaxis_rangeslider_visible=False, title=f"{target} Analysis ({timeframe})")
                 st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("Tidak ada aset yang sesuai kriteria.")
+            st.warning("Tidak ada aset yang memenuhi kriteria filter saat ini.")
 
 if __name__ == "__main__":
     main()
