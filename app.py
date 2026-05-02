@@ -1,9 +1,9 @@
 """
 ================================================================================
- ULTRA WAVE MATRIX DASHBOARD (1000+ ASSETS)
+ ULTRA WAVE MATRIX 1000+ (IHSG & MEGA CRYPTO)
  Logic   : White Line (Structure) & Purple Line (Dominance)
  Author  : Senior Quantitative Developer
- Strategy: Golden Cross (Buy/Long) & Death Cross (Sell/Short)
+ Features: Golden Cross, Death Cross, & Level Screening
 ================================================================================
 """
 
@@ -19,9 +19,9 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 0.  CONFIG & MEGA DATASET
+# 0.  CONFIG & MEGA DATASET (1000+ TICKERS)
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Ultra Wave Matrix 500", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="Ultra Wave Matrix 1000", page_icon="🔮", layout="wide")
 
 IHSG_RAW = """
 AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO 
@@ -63,32 +63,36 @@ VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD
 WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX
 """
 
-# MEGA LIST: 500 Ticker Crypto (Top Market Cap & Trending Perps)
 CRYPTO_RAW = """
 BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP 
 TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA 
 LDO VET BEAM SEI AAVE MKR RUNE GALA EGLD ALGO FLOW DYDX CRV SNX PENDLE JUP 
 PYTH STRK W ENA ROSE AGIX STG AXS SAND MANA CHZ MINA KAVA GRT AGLD JASMY 
-TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM 
-AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI 
-MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG 
-HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT 
-BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF 
-NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE 
-EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF 
-ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN 
-DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX 
-SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR 
-LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY 
-ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC 
-ZEN RARE CLV ALPHA FIS SPELL UTK CHESS ADX QI ACH 
-GHST DAR VOXEL SANTOS C98 RIF POND MDT CTKC GFT 
-HOOK BNX NMR PROS VIB AST OAX MDT DUSK PHB LSK 
-AMB ARDR LOOM SYS VGX REQ AKRO POLS TROY HARD 
+TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM AKT 
+NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI MEME LADYS 
+TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG HOT RVN CKB SLP 
+GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT BOME MEW MYRO 
+WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX 
+ACH TRU HOOK MAGIC GAL CORE EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT 
+C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN 
+DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR 
+GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO 
+TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE 
+FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL POND MDT 
+CTKC BNX NMR PROS VIB AST OAX DUSK PHB LSK AMB ARDR LOOM REQ AKRO POLS 
+HARD STPT STRAX OOKI PERP UNFI WING FOR BOND MOB MOVR AMB MDT SYN HIGH 
+LOOM PHB MULTI KP3R SNT STPT PROS OAX CTXC VGX SPELL GAS GLM TFUEL LINA 
+KEY DENT MFT DATA PIVX TROY ARDR STEEM SCRT KMD SYS ADX ONG VTHO NKN 
+DOCK POND CTSI RAMP CTK HARD AKRO TORN FRONT BAKE DEGO TKO EPS AUTO 
+PERP GTC QUICK ERN PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE 
+FLOW MIR ANC RARE CLV ALPHA FIS CHESS QI GHST VOXEL BNX NMR VIB AST 
+OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR 
+BOND MOB MOVR SYN HIGH KP3R SNT MULTI GNS GMX WOO ZRX KNC LRC SUSHI 
+BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1.  CALCULATION ENGINE
+# 1.  CORE ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
@@ -97,10 +101,10 @@ def pandas_wma(series, window):
 
 def compute_waves(df):
     df = df.copy()
-    # Purple Line (Dominance)
+    # Purple Line: Dominance (RSI based)
     rsi_raw = ta.momentum.rsi(df['Close'], window=14)
     df['purple_line'] = ((rsi_raw - 50) * 2).ewm(span=3, adjust=False).mean()
-    # White Line (Structure)
+    # White Line: Structure (High/Low Range)
     hh, ll = df['High'].rolling(20).max(), df['Low'].rolling(20).min()
     diff = (hh - ll).replace(0, 0.001)
     df['white_line'] = pandas_wma(((df['Close'] - ll) / diff) * 200 - 100, 8)
@@ -136,6 +140,7 @@ def main():
     vol_label = "Min Vol (Juta Lembar)" if market == "IHSG" else "Min Daily Vol (Juta USD)"
     min_vol = st.sidebar.slider(vol_label, 1, 1000, 10 if market == "IHSG" else 50)
 
+    # Building the ticker list
     if market == "IHSG":
         tickers = sorted(list(set([t.strip() + ".JK" for t in IHSG_RAW.split()])))
     else:
@@ -145,7 +150,7 @@ def main():
         results = []
         progress = st.progress(0)
         
-        with st.spinner(f"Analisis {len(tickers)} aset sedang berjalan..."):
+        with st.spinner(f"Analisis market sedang berjalan..."):
             for i, t in enumerate(tickers):
                 df = fetch_data(t)
                 if df is not None:
@@ -153,6 +158,7 @@ def main():
                     if len(df) < 2: continue
                     latest, prev = df.iloc[-1], df.iloc[-2]
                     
+                    # Volume Logic
                     turnover = (latest['Close'] * latest['Volume']) / 1_000_000 if market == "Crypto Perps" else latest['Volume'] / 1_000_000
                     if turnover < min_vol: continue
                     
