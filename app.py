@@ -1,9 +1,10 @@
 """
 ================================================================================
- ULTRA UNIFIED WAVE MATRIX (IHSG LIVE & BYBIT PERPS)
+ MHALIK - ULTRA MTF WAVE MATRIX (IHSG & BYBIT PERPS)
  Logic   : White Line (Structure) & Purple Line (Dominance)
  Author  : Senior Quantitative Developer
- Features: Live Ticker Discovery, Multi-Timeframe, Golden/Death Cross
+ Features: Live Ticker Discovery, Multi-Timeframe (15m, 1h, 4h, 1d), 
+           Golden/Death Cross Sinyal
 ================================================================================
 """
 
@@ -23,27 +24,34 @@ warnings.filterwarnings("ignore")
 # 1.  DYNAMIC TICKER DISCOVERY (IHSG & BYBIT)
 # ──────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=86400) # Simpan daftar saham 24 jam
+@st.cache_data(ttl=86400)
 def get_all_ihsg_tickers():
-    """Scraping live daftar seluruh emiten IDX dari Wikipedia."""
+    """Scraping live daftar seluruh emiten IDX dengan Header agar tidak diblokir."""
     try:
         url = "https://id.wikipedia.org/wiki/Daftar_perusahaan_yang_tercatat_di_Bursa_Efek_Indonesia"
-        tables = pd.read_html(url)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=15)
+        tables = pd.read_html(response.text)
         all_tickers = []
         for df in tables:
             if 'Kode' in df.columns:
                 codes = df['Kode'].astype(str).str.strip().unique()
                 all_tickers.extend([c + ".JK" for c in codes if len(c) == 4])
+        
+        if not all_tickers: raise Exception("Data Kosong")
         return sorted(list(set(all_tickers)))
     except:
-        return ["BBCA.JK", "BBRI.JK", "BMRI.JK", "TLKM.JK", "ASII.JK"]
+        # Fallback Cadangan Panjang (Top Tickers) jika scrap gagal
+        return sorted(["BBCA.JK","BBRI.JK","BMRI.JK","BBNI.JK","TLKM.JK","ASII.JK","UNTR.JK",
+                "ADRO.JK","PTBA.JK","ANTM.JK","INCO.JK","MDKA.JK","GOTO.JK","AMRT.JK",
+                "BRMS.JK","BRIS.JK","ICBP.JK","INDF.JK","KLBF.JK","CPIN.JK"])
 
-@st.cache_data(ttl=3600) # Update daftar koin Bybit tiap jam
+@st.cache_data(ttl=3600)
 def get_bybit_perps():
-    """Ambil semua koin USDT Perpetual yang aktif di Bybit API."""
+    """Ambil semua koin USDT Perpetual Bybit via API V5."""
     url = "https://api.bybit.com/v5/market/instruments-info?category=linear"
     try:
-        r = requests.get(url, timeout=10)
+        r = requests.get(url, timeout=15)
         data = r.json()
         if data['retCode'] == 0:
             symbols = [
@@ -51,26 +59,32 @@ def get_bybit_perps():
                 for item in data['result']['list'] 
                 if item['symbol'].endswith('USDT') and item['status'] == 'Trading'
             ]
+            if not symbols: raise Exception("Data Kosong")
             return sorted(list(set(symbols)))
-        return ["BTC-USD", "ETH-USD", "SOL-USD"]
+        raise Exception("API Error")
     except:
-        return ["BTC-USD", "ETH-USD", "SOL-USD"]
+        # Fallback Cadangan (Top Crypto) jika API Bybit gagal
+        return sorted(["BTC-USD","ETH-USD","BNB-USD","SOL-USD","XRP-USD","ADA-USD",
+                "DOGE-USD","AVAX-USD","DOT-USD","MATIC-USD","LINK-USD","NEAR-USD",
+                "UNI-USD","APT-USD","ARB-USD","OP-USD","TIA-USD","SUI-USD"])
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2.  CALCULATION ENGINE
+# 2.  CALCULATION ENGINE (Pine Script Porting)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
+    """Weighted Moving Average (WMA) untuk menghitung White Line."""
     weights = np.arange(1, window + 1)
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
 def compute_waves(df):
+    """Menghitung Garis Putih (Structure) & Ungu (Dominance)."""
     if df is None or len(df) < 30: return None
     df = df.copy()
-    # Purple Line (Dominance)
+    # Purple Line (Dominance): Smoothed RSI
     rsi_raw = ta.momentum.rsi(df['Close'], window=14)
     df['purple_line'] = ((rsi_raw - 50) * 2).ewm(span=3, adjust=False).mean()
-    # White Line (Structure)
+    # White Line (Structure): High/Low Range WMA
     hh, ll = df['High'].rolling(20).max(), df['Low'].rolling(20).min()
     diff = (hh - ll).replace(0, 0.001)
     df['white_line'] = pandas_wma(((df['Close'] - ll) / diff) * 200 - 100, 8)
@@ -78,6 +92,7 @@ def compute_waves(df):
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_mtf_data(ticker, timeframe):
+    """Download data berdasarkan timeframe & Resample 4H."""
     try:
         if timeframe == "15m":
             df = yf.download(ticker, period="7d", interval="15m", progress=False, auto_adjust=True)
@@ -96,22 +111,25 @@ def fetch_mtf_data(ticker, timeframe):
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3.  UI & MAIN LOGIC
+# 3.  UI LAYOUT & LOGIC
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.sidebar.markdown("### 🗺️ Market Selection")
-    market = st.sidebar.radio("Universe:", ["IHSG (Live IDX)", "Crypto Perps (Bybit)"])
+    st.sidebar.markdown("### 🗺️ Market Explorer")
+    market = st.sidebar.radio("Universe:", ["IHSG (Live Discovery)", "Crypto Perps (Bybit API)"])
     timeframe = st.sidebar.selectbox("Timeframe:", ["15m", "1h", "4h", "1d"], index=3)
     
     st.sidebar.divider()
     st.sidebar.header("⚙️ Strategy Filters")
-    strategy = st.sidebar.selectbox("Sinyal:", ["Level Garis Putih", "Golden Cross (Putih ↗ Ungu)", "Death Cross (Putih ↘ Ungu)"])
+    strategy = st.sidebar.selectbox(
+        "Sinyal Utama:", 
+        ["Level Garis Putih", "Golden Cross (Putih ↗ Ungu)", "Death Cross (Putih ↘ Ungu)"]
+    )
     
     if strategy == "Level Garis Putih":
         struct_range = st.sidebar.slider("Range White Line", -100, 100, (50, 100))
     
-    vol_label = "Min Vol (Juta Unit)" if market == "IHSG (Live IDX)" else "Min Daily Vol (Juta USD)"
+    vol_label = "Min Vol (Juta Unit)" if "IHSG" in market else "Min Daily Vol (Juta USD)"
     min_vol = st.sidebar.slider(vol_label, 1, 1000, 10 if "IHSG" in market else 50)
 
     # Ticker Discovery
@@ -119,22 +137,23 @@ def main():
         with st.spinner("Mengambil daftar emiten IDX..."):
             tickers = get_all_ihsg_tickers()
     else:
-        with st.spinner("Menghubungkan ke Bybit..."):
+        with st.spinner("Menghubungkan ke API Bybit..."):
             tickers = get_bybit_perps()
 
     st.sidebar.caption(f"Aset terdeteksi: {len(tickers)}")
 
-    if st.sidebar.button(f"🔍 Scan {len(tickers)} Assets"):
+    if st.sidebar.button(f"🔍 Scan {len(tickers)} Assets ({timeframe})"):
         results = []
         progress = st.progress(0)
         
-        with st.spinner(f"Analisis {timeframe} sedang berjalan..."):
+        with st.spinner(f"Scanning market {timeframe}..."):
             for i, t in enumerate(tickers):
                 df_raw = fetch_mtf_data(t, timeframe)
                 df = compute_waves(df_raw)
                 
                 if df is not None and len(df) >= 2:
                     latest, prev = df.iloc[-1], df.iloc[-2]
+                    # Volume Logic: Scalping ready
                     turnover = (latest['Close'] * latest['Volume']) / 1_000_000 if "Crypto" in market else latest['Volume'] / 1_000_000
                     
                     if turnover < min_vol: continue
@@ -165,8 +184,9 @@ def main():
 
         if results:
             res_df = pd.DataFrame(results).sort_values("White Wave", ascending=False)
-            st.success(f"🔥 Ditemukan {len(res_df)} peluang di {timeframe}!")
+            st.success(f"🔥 Sinyal Ditemukan! ({len(res_df)} peluang)")
             
+            # Styling Tabel untuk visualisasi cepat
             def color_sig(val):
                 if val == "Bullish Cross": return 'color: #26a69a; font-weight: bold'
                 if val == "Bearish Cross": return 'color: #ef5350; font-weight: bold'
@@ -175,19 +195,19 @@ def main():
             st.dataframe(res_df.style.map(color_sig, subset=['Signal']), use_container_width=True)
             
             st.divider()
-            target = st.selectbox("Analisis Grafik:", res_df['Asset'])
+            target = st.selectbox("Analisis Grafik Lanjutan:", res_df['Asset'])
             if target:
                 full_t = target + (".JK" if "IHSG" in market else "-USD")
                 df_p = compute_waves(fetch_mtf_data(full_t, timeframe))
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05)
                 fig.add_trace(go.Candlestick(x=df_p.index, open=df_p['Open'], high=df_p['High'], low=df_p['Low'], close=df_p['Close'], name="Price"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White Line", line=dict(color='white', width=2)), row=2, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple Line", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White (Structure)", line=dict(color='white', width=2)), row=2, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple (Dominance)", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
                 for l, c in [(80, 'red'), (0, 'gray'), (-80, 'green')]: fig.add_hline(y=l, line_dash="dash", line_color=c, opacity=0.3, row=2, col=1)
-                fig.update_layout(template="plotly_dark", height=700, xaxis_rangeslider_visible=False, title=f"{target} - {timeframe}")
+                fig.update_layout(template="plotly_dark", height=750, xaxis_rangeslider_visible=False, title=f"{target} - {timeframe}")
                 st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("Tidak ada aset yang sesuai kriteria.")
+            st.warning("Tidak ada aset yang sesuai kriteria hari ini.")
 
 if __name__ == "__main__":
     main()
