@@ -1,24 +1,18 @@
 """
 ================================================================================
- IHSG PREDICTIVE STRUCTURE SCREENER
- Logic   : Gelombang 4 - Price Structure (White Wave)
- Author  : Senior Quantitative Developer
- Stack   : Streamlit · yfinance · ta · Plotly
- Market  : Indonesian Stock Exchange (IDX)
+ IHSG STRUCTURE MATRIX SCREENER (SIMPLIFIED)
+ Logic   : Gelombang 4 - Price Structure (White Line) Only
+ Universe: ~500 Saham IHSG Terlikuid
 ================================================================================
 """
 
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import ta
+import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import requests
-import json
-from datetime import datetime
 import time
-import numpy as np
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -26,7 +20,7 @@ warnings.filterwarnings("ignore")
 # ──────────────────────────────────────────────────────────────────────────────
 # 0.  PAGE CONFIG & TICKERS
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="IHSG Structure Screener", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="IHSG Wave Screener", page_icon="🔮", layout="wide")
 
 RAW_TICKERS = """
 AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO 
@@ -71,47 +65,22 @@ WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX
 TICKER_UNIVERSE = sorted(list(dict.fromkeys([t.strip() + ".JK" for t in RAW_TICKERS.split()])))
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1.  CORE ENGINE (Porting Pine Script Logic)
+# 1.  CALCULATION ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
-    """Fungsi pembantu WMA karena pandas tidak punya bawaan."""
     weights = np.arange(1, window + 1)
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
-def compute_predictive_matrix(df):
-    """
-    Menghitung Gelombang 4: Price Structure dari Pine Script.
-    Formula: ((close - ll) / (hh - ll)) * 200 - 100 -> Smoothed by WMA 8
-    """
+def compute_white_line(df):
+    """Porting Gelombang 4 dari Pine Script."""
     df = df.copy()
-    # Gelombang 4 Logic
     hh = df['High'].rolling(20).max()
     ll = df['Low'].rolling(20).min()
-    
-    # Menghindari pembagian nol
-    diff = (hh - ll).replace(0, 0.0001)
+    diff = (hh - ll).replace(0, 0.001)
     struct_raw = ((df['Close'] - ll) / diff) * 200 - 100
-    
-    # Smoothing dengan WMA 8
-    df['struct_wave'] = pandas_wma(struct_raw, 8)
-    
-    # Tambahan Trend Filter (SMA)
-    df['SMA_50'] = ta.trend.sma_indicator(df['Close'], window=50)
+    df['white_line'] = pandas_wma(struct_raw, 8)
     return df
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def fetch_fundamentals(ticker: str) -> dict:
-    try:
-        info   = yf.Ticker(ticker).info
-        return {
-            "PER": round(float(info.get("trailingPE", -1)), 2),
-            "PBV": round(float(info.get("priceToBook", -1)), 2),
-            "name": info.get("longName", ticker),
-            "sector": info.get("sector", "N/A"),
-        }
-    except:
-        return {"PER": -1, "PBV": -1, "name": ticker, "sector": "N/A"}
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_data(ticker):
@@ -123,92 +92,93 @@ def fetch_data(ticker):
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2.  UI & SCREENER
+# 2.  APP INTERFACE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.title("🔮 IHSG Predictive Trend Matrix")
+    st.markdown("### 🔮 IHSG Structure Wave Screener")
     
-    # Sidebar
-    st.sidebar.header("⚙️ Matrix Parameters")
-    min_struct = st.sidebar.slider("Min Price Structure Level (White Line)", -100, 100, 50)
-    min_vol_m  = st.sidebar.slider("Min Vol Rata2 20H (Juta)", 1, 100, 10)
-    max_pbv    = st.sidebar.slider("Max PBV", 0.5, 5.0, 1.5)
+    # Sidebar Simplified
+    st.sidebar.header("⚙️ Matrix Filters")
+    
+    # Range Slider untuk Min dan Max Garis Putih
+    struct_range = st.sidebar.slider(
+        "Range Level Garis Putih", 
+        -100, 100, (50, 100), 
+        help="Cari saham dengan level garis putih di antara rentang ini."
+    )
+    min_struct, max_struct = struct_range
+    
+    # Volume Filter
+    min_vol_m = st.sidebar.slider("Min Vol Rata2 20H (Juta Lembar)", 1, 200, 10)
     
     if st.sidebar.button("🚀 Jalankan Screener"):
-        universe_data = {}
-        progress = st.progress(0)
+        results = []
+        progress_bar = st.progress(0)
         
-        # Load Data
-        with st.spinner("Menganalisis 500+ saham..."):
+        with st.spinner("Menganalisis pasar..."):
             for i, ticker in enumerate(TICKER_UNIVERSE):
                 df = fetch_data(ticker)
                 if df is not None:
-                    universe_data[ticker] = df
-                progress.progress((i + 1) / len(TICKER_UNIVERSE))
+                    df = compute_white_line(df)
+                    latest = df.iloc[-1]
+                    
+                    # 1. Volume Filter
+                    avg_vol = df['Volume'].iloc[-20:].mean()
+                    if avg_vol < (min_vol_m * 1_000_000):
+                        continue
+                    
+                    # 2. White Line Filter (Min & Max)
+                    val = latest['white_line']
+                    if min_struct <= val <= max_struct:
+                        results.append({
+                            "Ticker": ticker,
+                            "Close": latest['Close'],
+                            "White Line Level": round(val, 2),
+                            "Vol 20D (M)": round(avg_vol / 1_000_000, 2)
+                        })
+                
+                progress_bar.progress((i + 1) / len(TICKER_UNIVERSE))
         
-        # Screening
-        results = []
-        for ticker, df in universe_data.items():
-            df_ind = compute_predictive_matrix(df)
-            latest = df_ind.iloc[-1]
-            
-            # Filter 1: Volume & Trend
-            avg_vol = df['Volume'].iloc[-20:].mean()
-            if avg_vol < (min_vol_m * 1_000_000): continue
-            if latest['Close'] < latest['SMA_50']: continue
-            
-            # Filter 2: Price Structure (Logika Pine Script)
-            current_struct = latest['struct_wave']
-            if current_struct < min_struct: continue
-            
-            # Filter 3: Fundamental (Hanya jika lolos teknikal)
-            fnd = fetch_fundamentals(ticker)
-            if fnd['PBV'] > max_pbv or fnd['PBV'] <= 0: continue
-            
-            results.append({
-                "Ticker": ticker,
-                "Nama": fnd['name'],
-                "Price": latest['Close'],
-                "Structure": round(current_struct, 2),
-                "Vol 20D (M)": round(avg_vol / 1_000_000, 2),
-                "PER": fnd['PER'],
-                "PBV": fnd['PBV']
-            })
-            
         if results:
-            res_df = pd.DataFrame(results).sort_values("Structure", ascending=False)
-            st.success(f"Ditemukan {len(res_df)} saham potensial!")
+            res_df = pd.DataFrame(results).sort_values("White Line Level", ascending=False)
+            st.success(f"Ditemukan {len(res_df)} saham lolos filter.")
             
-            # Style Table
-            st.dataframe(res_df.style.background_gradient(subset=['Structure'], cmap='RdYlGn'), use_container_width=True)
+            # Tampilkan Tabel
+            st.dataframe(
+                res_df.style.background_gradient(subset=['White Line Level'], cmap='RdYlGn'),
+                use_container_width=True
+            )
             
-            # Visualisasi Chart
+            # Chart Terpilih
             st.divider()
-            target = st.selectbox("Pilih Saham untuk Analisis Visual:", res_df['Ticker'])
-            if target:
-                df_plot = compute_predictive_matrix(universe_data[target])
+            selected = st.selectbox("Analisis Grafik:", res_df['Ticker'])
+            if selected:
+                df_plot = compute_white_line(fetch_data(selected))
                 
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                                   vertical_spacing=0.1, row_heights=[0.7, 0.3],
-                                   subplot_titles=("Price Action", "Price Structure Wave (White Line)"))
+                                   vertical_spacing=0.05, row_heights=[0.7, 0.3])
                 
                 # Candlestick
-                fig.add_trace(go.Candlestick(x=df_plot.index, open=df_plot['Open'], high=df_plot['High'],
-                                           low=df_plot['Low'], close=df_plot['Close'], name="Price"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['SMA_50'], name="SMA 50", line=dict(color='yellow')), row=1, col=1)
+                fig.add_trace(go.Candlestick(
+                    x=df_plot.index, open=df_plot['Open'], high=df_plot['High'],
+                    low=df_plot['Low'], close=df_plot['Close'], name="Price"
+                ), row=1, col=1)
                 
-                # Structure Wave
-                fig.add_trace(go.Scatter(x=df_plot.index, y=df_plot['struct_wave'], name="Wave", line=dict(color='white', width=2)), row=2, col=1)
+                # White Line Wave
+                fig.add_trace(go.Scatter(
+                    x=df_plot.index, y=df_plot['white_line'], 
+                    name="White Wave", line=dict(color='white', width=2)
+                ), row=2, col=1)
                 
-                # Critical Levels
+                # Zone Levels
                 for lvl, clr in [(80, 'red'), (0, 'gray'), (-80, 'green')]:
-                    fig.add_hline(y=lvl, line_dash="dash", line_color=clr, row=2, col=1)
+                    fig.add_hline(y=lvl, line_dash="dash", line_color=clr, opacity=0.5, row=2, col=1)
                 
-                fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
+                fig.update_layout(template="plotly_dark", height=700, xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning("Tidak ada saham yang lolos kriteria. Coba longgarkan parameter.")
+            st.warning("Tidak ada saham yang sesuai kriteria. Coba longgarkan filter di sidebar.")
 
 if __name__ == "__main__":
     main()
