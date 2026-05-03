@@ -14,12 +14,12 @@ warnings.filterwarnings("ignore")
 # ──────────────────────────────────────────────────────────────────────────────
 # 0. API & CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
-# Memastikan pengambilan kunci dari Secrets aman dan benar
+# Pastikan GEMINI_KEY sudah diisi di dashboard Streamlit Secrets
 try:
     GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
     genai.configure(api_key=GEMINI_API_KEY)
-except Exception as e:
-    st.error("Gagal memuat API Key dari Secrets. Pastikan GEMINI_KEY sudah diisi di dashboard Streamlit.")
+except Exception:
+    st.error("⚠️ GEMINI_KEY tidak ditemukan di Secrets!")
 
 st.set_page_config(page_title="Aulsome Screener", page_icon="🔮", layout="wide")
 
@@ -109,23 +109,19 @@ def detect_patterns(df):
     l_shadow5 = min(c5['Close'], c5['Open']) - c5['Low']
     u_shadow5 = c5['High'] - max(c5['Close'], c5['Open'])
 
-    # Bullish Mat Hold[span_0](start_span)[span_0](end_span)
     if (c1['Close'] > c1['Open']) and (c2['Open'] > c1['Close']) and \
        (c2['Close'] < c2['Open']) and (min(c2['Low'], c3['Low'], c4['Low']) > c1['Low']) and \
        (c5['Close'] > c5['Open']) and (c5['Close'] > c2['High']):
         return "Bullish Mat Hold"
     
-    # Morning Star[span_1](start_span)[span_1](end_span)
     if (c3['Close'] < c3['Open']) and (abs(c4['Close'] - c4['Open']) < abs(c3['Close'] - c3['Open']) * 0.3) and \
        (c5['Close'] > c5['Open']) and (c5['Close'] > (c3['Open'] + c3['Close'])/2):
         return "Morning Star"
         
-    # Bullish Engulfing[span_2](start_span)[span_2](end_span)
     if (c4['Close'] < c4['Open']) and (c5['Close'] > c5['Open']) and \
        (c5['Open'] <= c4['Close']) and (c5['Close'] >= c4['Open']):
         return "Bullish Engulfing"
         
-    # Hammer[span_3](start_span)[span_3](end_span)
     if (l_shadow5 >= 2 * body5) and (u_shadow5 <= 0.2 * body5) and (body5 > 0):
         return "Hammer"
 
@@ -148,19 +144,13 @@ def fetch_data(ticker, timeframe):
 
 def get_ai_insight(asset, pattern, white, vol, quality, price):
     try:
-        # MENGGUNAKAN gemini-pro UNTUK FIX 404 ERROR
-        model = genai.GenerativeModel('gemini-pro')
+        # MENGGUNAKAN gemini-1.5-flash UNTUK MENGHINDARI 404
+        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"""
-        Analisis aset {asset}. 
-        Harga: {price}, Pola Candlestick: {pattern}, White Wave Position: {white} (Skala -100 ke 100), 
-        Lonjakan Volume: {vol}x, Status Quality: {quality}.
-        
-        Berikan insight teknikal singkat dalam 3 paragraf:
-        1. Jelaskan psikologi pasar di balik pola {pattern} ini.
-        2. Hubungkan posisi White Wave dengan potensi pembalikan atau kelanjutan tren.
-        3. Berikan kesimpulan apakah sinyal ini 'Super Yahud' atau berisiko 'Fakeout'.
-        
-        Gunakan gaya bahasa profesional 'Aulsome Screener'.
+        Jelaskan analisis teknikal untuk {asset}. 
+        Harga: {price}, Pola: {pattern}, White Wave: {white}, Lonjakan Volume: {vol}x, Quality: {quality}.
+        Kenapa aset ini 'Super Yahud' atau apa risikonya? 
+        Analisis dalam 2-3 paragraf dengan gaya Aulsome Screener yang pro.
         """
         response = model.generate_content(prompt)
         return response.text
@@ -177,8 +167,12 @@ def main():
     timeframe = st.sidebar.selectbox("Timeframe:", ["15m", "1h", "4h", "1d"], index=3)
     mode = st.sidebar.selectbox("Mode:", ["Wave Matrix", "Candlestick Pattern"])
     
+    struct_range = None
     if mode == "Wave Matrix":
         strategy = st.sidebar.selectbox("Signal:", ["Level Garis Putih", "Golden Cross", "Death Cross"])
+        # KEMBALIKAN SLIDER DI SINI
+        if strategy == "Level Garis Putih":
+            struct_range = st.sidebar.slider("Range Garis Putih (Min-Max)", -100, 100, (-100, -50))
     else:
         strategy = st.sidebar.selectbox("Pattern:", ["Bullish Mat Hold", "Morning Star", "Bullish Engulfing", "Hammer"])
 
@@ -192,27 +186,24 @@ def main():
     if st.sidebar.button(f"RUN SCAN ({len(tickers)} ASSETS)", use_container_width=True):
         results = []
         progress = st.progress(0)
-        status_text = st.empty()
         
         def process_ticker(t):
             df_raw = fetch_data(t, timeframe)
             df = compute_waves(df_raw)
             if df is not None and len(df) >= 10:
                 latest, prev = df.iloc[-1], df.iloc[-2]
-                
-                # Volume Logic
                 turnover = (latest['Close'] * latest['Volume']) / 1_000_000 if market == "Crypto" else latest['Volume'] / 1_000_000
                 if turnover < min_vol: return None
                 
-                # Vol Spike Check[span_4](start_span)[span_4](end_span)
                 avg_vol = df['Volume'].iloc[-6:-1].mean()
                 vol_ratio = latest['Volume'] / avg_vol if avg_vol > 0 else 1.0
                 
                 match = False
                 p = detect_patterns(df)
-                
                 if mode == "Wave Matrix":
-                    if strategy == "Level Garis Putih" and (50 <= latest['white_line'] <= 100): match = True
+                    if strategy == "Level Garis Putih":
+                        # Gunakan struct_range dari slider
+                        if struct_range[0] <= latest['white_line'] <= struct_range[1]: match = True
                     elif strategy == "Golden Cross" and prev['white_line'] <= prev['purple_line'] and latest['white_line'] > latest['purple_line']: match = True
                     elif strategy == "Death Cross" and prev['white_line'] >= prev['purple_line'] and latest['white_line'] < latest['purple_line']: match = True
                 else:
@@ -220,43 +211,28 @@ def main():
                 
                 if match:
                     quality = "✅ YAHUD"
-                    # SUPER YAHUD SYNERGY[span_5](start_span)[span_5](end_span)
                     if vol_ratio > 1.5 and latest['white_line'] < -60: quality = "🔥 SUPER YAHUD"
-                    elif vol_ratio < 0.8: quality = "⚠️ Low Vol"
-                    
-                    return {
-                        "Asset": t.replace(".JK","").replace("-USD",""), 
-                        "Price": round(latest['Close'], 2), 
-                        "Pattern": p, 
-                        "White": round(latest['white_line'], 1), 
-                        "Vol Spike": round(vol_ratio, 2), 
-                        "Quality": quality
-                    }
+                    return {"Asset": t.replace(".JK","").replace("-USD",""), "Price": round(latest['Close'], 2), "Pattern": p, "White": round(latest['white_line'], 1), "Vol Spike": round(vol_ratio, 2), "Quality": quality}
             return None
 
-        # Multi-threading untuk kecepatan 10x
         with ThreadPoolExecutor(max_workers=20) as executor:
             scanned = 0
             for res in executor.map(process_ticker, tickers):
                 scanned += 1
                 if res: results.append(res)
                 progress.progress(scanned / len(tickers))
-                status_text.text(f"Scanning: {scanned}/{len(tickers)}")
         
-        status_text.empty()
         st.session_state['results'] = results
 
     with tab_scan:
         if 'results' in st.session_state and st.session_state['results']:
-            df_display = pd.DataFrame(st.session_state['results'])
-            st.dataframe(df_display, use_container_width=True, hide_index=True)
-        else: 
-            st.info("Silakan klik 'Run Scan' di sidebar untuk memulai.")
+            st.dataframe(pd.DataFrame(st.session_state['results']), use_container_width=True, hide_index=True)
+        else: st.info("Scan market dulu di sidebar.")
 
     with tab_ai:
         if 'results' in st.session_state and st.session_state['results']:
             res_data = st.session_state['results']
-            selected = st.selectbox("Pilih Aset untuk Analisis AI:", [r['Asset'] for r in res_data])
+            selected = st.selectbox("Pilih Aset:", [r['Asset'] for r in res_data])
             data = next(i for i in res_data if i['Asset'] == selected)
             
             col_ch, col_ai = st.columns([2, 1])
@@ -264,24 +240,21 @@ def main():
                 t_full = selected + (".JK" if market == "IHSG" else "-USD")
                 df_p = compute_waves(fetch_data(t_full, timeframe))
                 if df_p is not None:
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05)
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4])
                     fig.add_trace(go.Candlestick(x=df_p.index, open=df_p['Open'], high=df_p['High'], low=df_p['Low'], close=df_p['Close'], name="Price"), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White Wave", line=dict(color='white', width=2)), row=2, col=1)
-                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple Wave", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
-                    for l, c in [(80, 'red'), (0, 'gray'), (-80, 'green')]: fig.add_hline(y=l, line_dash="dash", line_color=c, opacity=0.3, row=2, col=1)
-                    fig.update_layout(template="plotly_dark", height=650, xaxis_rangeslider_visible=False, margin=dict(l=10, r=10, t=30, b=10))
+                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White Wave", line=dict(color='white')), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple Wave", line=dict(color='purple')), row=2, col=1)
+                    fig.update_layout(template="plotly_dark", height=600, xaxis_rangeslider_visible=False)
                     st.plotly_chart(fig, use_container_width=True)
             
             with col_ai:
                 st.subheader("🧠 Gemini Insight")
-                if st.button("🪄 Get AI Insight", use_container_width=True):
-                    with st.spinner(f"Membedah teknikal {selected}..."):
+                if st.button("🪄 Get AI Insight"):
+                    with st.spinner("Analyzing..."):
+                        # FIX: Memanggil model terbaru
                         insight = get_ai_insight(selected, data['Pattern'], data['White'], data['Vol Spike'], data['Quality'], data['Price'])
                         st.markdown(insight)
-                        st.divider()
-                        st.caption("Analisis ini berdasarkan data teknikal terakhir. Tetap gunakan risk management!")
-        else: 
-            st.warning("Scan market terlebih dahulu untuk melihat analisis detail.")
+        else: st.warning("Scan market dulu.")
 
 if __name__ == "__main__":
     main()
