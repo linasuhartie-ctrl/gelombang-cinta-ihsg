@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore")
 # 0. API & CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 # Menggunakan API Key dari screenshot Anda
-GEMINI_API_KEY = "MASUKKAN_API_KEY_LENGKAP_ANDA_DI_SINI" 
+GEMINI_API_KEY = "AIzaSyBN4iSR2hVpXaakH4XmZWKWsvUBWuz1ZEo" 
 genai.configure(api_key=GEMINI_API_KEY)
 
 st.set_page_config(page_title="Aulsome Screener", page_icon="🔮", layout="wide")
