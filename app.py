@@ -7,20 +7,19 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import warnings
 from concurrent.futures import ThreadPoolExecutor
-import google.generativeai as genai
+from groq import Groq # Library baru untuk Groq
 
-# Pastikan tanda kutip lurus standar
+# Memastikan semua tanda kutip lurus standar agar tidak error
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 0. API & CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 try:
-    # Mengambil kunci dari brankas Secrets Streamlit
-    GEMINI_API_KEY = st.secrets["GEMINI_KEY"]
-    genai.configure(api_key=GEMINI_API_KEY)
+    # Mengambil kunci Groq dari Secrets
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("⚠️ GEMINI_KEY tidak ditemukan di Secrets! Cek dashboard Streamlit Bapak.")
+    st.error("⚠️ GROQ_API_KEY tidak ditemukan di Secrets! Silakan tambahkan di dashboard Streamlit.")
 
 st.set_page_config(page_title="Aulsome Screener", page_icon="🔮", layout="wide")
 
@@ -110,26 +109,18 @@ def detect_patterns(df):
     l_shadow5 = min(c5["Close"], c5["Open"]) - c5["Low"]
     u_shadow5 = c5["High"] - max(c5["Close"], c5["Open"])
 
-    # Bullish Mat Hold (78% Win Rate)[span_1](start_span)[span_1](end_span)
     if (c1["Close"] > c1["Open"]) and (c2["Open"] > c1["Close"]) and \
        (c2["Close"] < c2["Open"]) and (min(c2["Low"], c3["Low"], c4["Low"]) > c1["Low"]) and \
        (c5["Close"] > c5["Open"]) and (c5["Close"] > c2["High"]):
         return "Bullish Mat Hold"
-    
-    # Morning Star (Strong Reversal)[span_2](start_span)[span_2](end_span)
     if (c3["Close"] < c3["Open"]) and (abs(c4["Close"] - c4["Open"]) < abs(c3["Close"] - c3["Open"]) * 0.3) and \
        (c5["Close"] > c5["Open"]) and (c5["Close"] > (c3["Open"] + c3["Close"])/2):
         return "Morning Star"
-        
-    # Bullish Engulfing[span_3](start_span)[span_3](end_span)
     if (c4["Close"] < c4["Open"]) and (c5["Close"] > c5["Open"]) and \
        (c5["Open"] <= c4["Close"]) and (c5["Close"] >= c4["Open"]):
         return "Bullish Engulfing"
-        
-    # Hammer[span_4](start_span)[span_4](end_span)
     if (l_shadow5 >= 2 * body5) and (u_shadow5 <= 0.2 * body5) and (body5 > 0):
         return "Hammer"
-
     return "Neutral"
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -149,26 +140,31 @@ def fetch_data(ticker, timeframe):
 
 def get_ai_insight(asset, pattern, white, vol, quality, price):
     try:
-        # ✅ UPDATE: Menggunakan mesin Gemini 2.0 Flash terbaru
-        model = genai.GenerativeModel("gemini-2.0-flash")
-        prompt = f"""
-        Sebagai analis 'Aulsome Screener', jelaskan potensi aset {asset}.
-        Data: Harga {price}, Pola {pattern}, White Wave {white}, Vol Spike {vol}x, Status {quality}.
-        Berikan insight kenapa ini 'Super Yahud' atau apa risikonya dalam 2 paragraf padat.
-        """
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e: 
-        if "429" in str(e):
-            return "⚠️ Kuota Free Tier habis. Tunggu 1 menit ya, Pak Aul!"
-        return f"Waduh, mesin 2.0 lagi pusing: {str(e)}"
+        # ✅ FITUR: Menggunakan Llama 3.3 melalui Groq
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Anda adalah analis profesional 'Aulsome Screener'. Berikan analisis teknikal yang tajam dan gunakan istilah 'Super Yahud' untuk sinyal yang sangat bagus."
+                },
+                {
+                    "role": "user",
+                    "content": f"Analisis aset {asset}. Harga {price}, Pola {pattern}, White Wave {white}, Vol Spike {vol}x, Status {quality}. Berikan insight dalam 2 paragraf padat."
+                }
+            ],
+            model="llama-3.3-70b-versatile", # Model Llama tercepat di Groq
+            temperature=0.7,
+        )
+        return chat_completion.choices[0].message.content
+    except Exception as e:
+        return f"Waduh, mesin Groq-nya lagi pusing: {str(e)}"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 2. INTERFACE (AULSOME UI)
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.sidebar.title("🔮 Aulsome Screener V3.3")
+    st.sidebar.title("🔮 Aulsome Screener V3.5")
     market = st.sidebar.radio("Universe:", ["IHSG", "Crypto"])
     timeframe = st.sidebar.selectbox("Timeframe:", ["15m", "1h", "4h", "1d"], index=3)
     mode = st.sidebar.selectbox("Mode Analysis:", ["Wave Matrix", "Candlestick Pattern"])
@@ -176,6 +172,7 @@ def main():
     struct_range = None
     if mode == "Wave Matrix":
         strategy = st.sidebar.selectbox("Signal Wave:", ["Level Garis Putih", "Golden Cross", "Death Cross"])
+        # ✅ SLIDER GARIS PUTIH DIKEMBALIKAN
         if strategy == "Level Garis Putih":
             struct_range = st.sidebar.slider("Range Garis Putih (Min-Max)", -100, 100, (-100, -50))
     else:
@@ -184,7 +181,7 @@ def main():
     min_vol = st.sidebar.number_input("Min Vol (Mln)", 0.1, 5000.0, 10.0)
     tickers = sorted([t.strip() + (".JK" if market == "IHSG" else "-USD") for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()])
 
-    st.title("🚀 Aulsome Screener — Machine Analytics")
+    st.title("🚀 Aulsome Screener — Groq Intelligence")
     tab_scan, tab_ai = st.tabs(["📊 Market Scan", "🧠 Deep Insight AI"])
 
     if st.sidebar.button(f"RUN SCAN ({len(tickers)} ASSETS)", use_container_width=True):
@@ -230,12 +227,12 @@ def main():
     with tab_scan:
         if "results" in st.session_state and st.session_state["results"]:
             st.dataframe(pd.DataFrame(st.session_state["results"]), use_container_width=True, hide_index=True)
-        else: st.info("Pilih kriteria lalu klik 'Run Scan' di sidebar, Pak Aul!")
+        else: st.info("Scan market dulu di sidebar.")
 
     with tab_ai:
         if "results" in st.session_state and st.session_state["results"]:
             res_data = st.session_state["results"]
-            selected = st.selectbox("Pilih Aset untuk Analisis 2.0:", [r["Asset"] for r in res_data])
+            selected = st.selectbox("Pilih Aset:", [r["Asset"] for r in res_data])
             data = next(i for i in res_data if i["Asset"] == selected)
             
             col_ch, col_ai = st.columns([2, 1])
@@ -251,12 +248,12 @@ def main():
                     st.plotly_chart(fig, use_container_width=True)
             
             with col_ai:
-                st.subheader("🧠 Gemini 2.0 Flash Insight")
+                st.subheader("🧠 Groq Llama 3.3 Insight")
                 if st.button("🪄 Get AI Insight"):
-                    with st.spinner("Mesin 2.0 sedang membedah market..."):
+                    with st.spinner("Membedah market secepat kilat..."):
                         insight = get_ai_insight(selected, data["Pattern"], data["White"], data["Vol Spike"], data["Quality"], data["Price"])
                         st.markdown(insight)
-        else: st.warning("Scan market dulu biar AI-nya ada bahan analisis.")
+        else: st.warning("Scan market dulu.")
 
 if __name__ == "__main__":
     main()
