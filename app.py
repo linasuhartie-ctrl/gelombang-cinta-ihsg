@@ -11,9 +11,9 @@ from concurrent.futures import ThreadPoolExecutor
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 0. SETUP & DATASET (MEGA VERSION)
+# 0. SETUP & DATASET (AULSOME EDITION)
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="AulSome PREDICTIVE V3", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="Aulsome Screener", page_icon="🔮", layout="wide")
 
 IHSG_MEGA = """
 AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO 
@@ -76,7 +76,7 @@ BOND MOB MOVR SYN HIGH KP3R SNT MULTI VANRY
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. ENGINES (OPTIMIZED)
+# 1. CORE ENGINES
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
@@ -95,32 +95,31 @@ def compute_waves(df):
     return df
 
 def detect_patterns(df):
-    """Sesuai kriteria teknis Kitab[span_1](start_span)[span_1](end_span)."""
+    """Logika deteksi candlestick sesuai panduan[span_0](start_span)[span_0](end_span)."""
     if df is None or len(df) < 6: return "Neutral"
     c1, c2, c3, c4, c5 = [df.iloc[-i] for i in range(5, 0, -1)]
     
-    # Components for C5
     body5 = abs(c5['Close'] - c5['Open'])
-    range5 = c5['High'] - c5['Low']
     l_shadow5 = min(c5['Close'], c5['Open']) - c5['Low']
     u_shadow5 = c5['High'] - max(c5['Close'], c5['Open'])
 
-    # 1. BULLISH MAT HOLD[span_2](start_span)[span_2](end_span)
+    # 1. BULLISH MAT HOLD (78% Win Rate)[span_1](start_span)[span_1](end_span)
     if (c1['Close'] > c1['Open']) and (c2['Open'] > c1['Close']) and \
        (c2['Close'] < c2['Open']) and (min(c2['Low'], c3['Low'], c4['Low']) > c1['Low']) and \
        (c5['Close'] > c5['Open']) and (c5['Close'] > c2['High']):
         return "Bullish Mat Hold"
     
-    # 2. MORNING STAR[span_3](start_span)[span_3](end_span)
+    # 2. MORNING STAR[span_2](start_span)[span_2](end_span)
     if (c3['Close'] < c3['Open']) and (abs(c4['Close'] - c4['Open']) < abs(c3['Close'] - c3['Open']) * 0.3) and \
        (c5['Close'] > c5['Open']) and (c5['Close'] > (c3['Open'] + c3['Close'])/2):
         return "Morning Star"
         
-    # 3. BULLISH ENGULFING[span_4](start_span)[span_4](end_span)
-    if (c4['Close'] < c4['Open']) and (c5['Close'] > c5['Open']) and (c5['Open'] <= c4['Close']) and (c5['Close'] >= c4['Open']):
+    # 3. BULLISH ENGULFING[span_3](start_span)[span_3](end_span)
+    if (c4['Close'] < c4['Open']) and (c5['Close'] > c5['Open']) and \
+       (c5['Open'] <= c4['Close']) and (c5['Close'] >= c4['Open']):
         return "Bullish Engulfing"
         
-    # 4. HAMMER[span_5](start_span)[span_5](end_span)
+    # 4. HAMMER[span_4](start_span)[span_4](end_span)
     if (l_shadow5 >= 2 * body5) and (u_shadow5 <= 0.2 * body5) and (body5 > 0):
         return "Hammer"
 
@@ -137,53 +136,50 @@ def fetch_mtf_data(ticker, timeframe):
         if df.empty: return None
         if timeframe == "4h":
             df = df.resample('4H').agg({'Open':'first','High':'max','Low':'min','Close':'last','Volume':'sum'}).dropna()
-        
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
         return df
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. UI LAYOUT & SCANNER LOGIC
+# 2. AULSOME INTERFACE
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.sidebar.markdown("## 🔮 MHALIK PREDICTIVE V3")
-    market = st.sidebar.radio("Market:", ["IHSG", "Crypto"])
+    st.sidebar.markdown("## 🔮 Aulsome Screener V3")
+    market = st.sidebar.radio("Universe:", ["IHSG", "Crypto"])
     timeframe = st.sidebar.selectbox("Timeframe:", ["15m", "1h", "4h", "1d"], index=3)
-    mode = st.sidebar.selectbox("Mode:", ["Wave Matrix", "Candlestick Pattern"])
+    mode = st.sidebar.selectbox("Analysis Mode:", ["Wave Matrix", "Candlestick Pattern"])
     
     if mode == "Wave Matrix":
         strategy = st.sidebar.selectbox("Signal:", ["Level Garis Putih", "Golden Cross", "Death Cross"])
     else:
         strategy = st.sidebar.selectbox("Pattern:", ["Bullish Mat Hold", "Morning Star", "Bullish Engulfing", "Hammer"])
 
-    min_vol = st.sidebar.number_input("Min Vol (Mln)", 0.1, 5000.0, 10.0)
-    
+    min_vol = st.sidebar.number_input("Min Volume (Mln)", 0.1, 5000.0, 10.0)
     tickers = sorted([t.strip() + (".JK" if market == "IHSG" else "-USD") for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()])
 
-    st.title("MHALIK Mega Screener — Integrated Kit")
+    st.title("Aulsome Screener — Machine Analytics Kit")
     
-    tab_res, tab_chart, tab_lib = st.tabs(["📊 Scanner Results", "📈 Deep Analysis", "📚 Pattern Library"])
+    tab_res, tab_chart, tab_lib = st.tabs(["📊 Scan Results", "📈 Analysis View", "📚 Pattern Library"])
 
-    if st.sidebar.button(f"🚀 RUN SCAN ({len(tickers)} ASSETS)"):
+    if st.sidebar.button(f"🚀 RUN SCAN ({len(tickers)} ASSETS)", use_container_width=True):
         results = []
         progress = st.progress(0)
         status = st.empty()
         
-        # Parallel Execution for Speed
-        def scan_logic(t):
+        def scan_worker(t):
             df_raw = fetch_mtf_data(t, timeframe)
             df = compute_waves(df_raw)
             if df is not None and len(df) >= 10:
                 latest, prev = df.iloc[-1], df.iloc[-2]
                 
-                # Volume Turnover
+                # Volume Logic
                 turnover = (latest['Close'] * latest['Volume']) / 1_000_000 if market == "Crypto" else latest['Volume'] / 1_000_000
                 if turnover < min_vol: return None
                 
-                # Volume Spike Logic[span_6](start_span)[span_6](end_span)
+                # Vol Spike Check[span_5](start_span)[span_5](end_span)
                 avg_vol = df['Volume'].iloc[-6:-1].mean()
-                vol_spike = (latest['Volume'] / avg_vol) if avg_vol > 0 else 1.0
+                vol_ratio = (latest['Volume'] / avg_vol) if avg_vol > 0 else 1.0
                 
                 match = False
                 detected = detect_patterns(df)
@@ -195,28 +191,29 @@ def main():
                     if detected == strategy: match = True
                 
                 if match:
-                    # SUPER YAHUD SYNERGY LOGIC[span_7](start_span)[span_7](end_span)
-                    is_yahud = "✅ YAHUD"
-                    if vol_spike > 1.5 and latest['white_line'] < -60: is_yahud = "🔥 SUPER YAHUD"
-                    elif vol_spike < 0.8: is_yahud = "⚠️ Low Vol"
+                    # YAHUD SYNERGY LOGIC[span_6](start_span)[span_6](end_span)
+                    quality = "✅ YAHUD"
+                    if vol_ratio > 1.5 and latest['white_line'] < -60: quality = "🔥 SUPER YAHUD"
+                    elif vol_ratio < 0.8: quality = "⚠️ Low Vol"
 
                     return {
-                        "Asset": t.split('.')[0] if market == "IHSG" else t.split('-')[0],
+                        "Asset": t.replace(".JK","").replace("-USD",""),
                         "Price": latest['Close'],
                         "Pattern": detected,
-                        "White": round(latest['white_line'], 1),
-                        "Vol Spike": round(vol_spike, 2),
-                        "Quality": is_yahud
+                        "White Wave": round(latest['white_line'], 1),
+                        "Vol Spike": round(vol_ratio, 2),
+                        "Quality": quality
                     }
             return None
 
-        with ThreadPoolExecutor(max_workers=20) as executor:
-            scanned_count = 0
-            for res in executor.map(scan_logic, tickers):
-                scanned_count += 1
+        # Multi-threading for 10x Speed
+        with ThreadPoolExecutor(max_workers=25) as executor:
+            scanned = 0
+            for res in executor.map(scan_worker, tickers):
+                scanned += 1
                 if res: results.append(res)
-                progress.progress(scanned_count / len(tickers))
-                status.text(f"Processed: {scanned_count}/{len(tickers)}")
+                progress.progress(scanned / len(tickers))
+                status.text(f"Processed: {scanned}/{len(tickers)}")
         
         status.empty()
         progress.empty()
@@ -227,14 +224,14 @@ def main():
                 st.dataframe(df_res, use_container_width=True, hide_index=True, column_config={
                     "Price": st.column_config.NumberColumn(format="%.2f"),
                     "Vol Spike": st.column_config.ProgressColumn(min_value=0, max_value=5, format="%.2fx"),
-                    "Quality": st.column_config.TextColumn(help="Synergy antara Pola, Volume, dan Wave Matrix[span_8](start_span)[span_8](end_span)")
+                    "Quality": st.column_config.TextColumn(help="Synergy Check: Pattern + Vol + Wave Location[span_7](start_span)[span_7](end_span)")
                 })
-            else: st.warning("No matches found.")
+            else: st.warning("No matches. Try lowering the volume filter.")
 
     with tab_chart:
-        target = st.selectbox("Select Asset to Analyze:", (tickers if 'df_res' not in locals() else df_res['Asset']))
+        target = st.selectbox("Select Asset for Deep Analysis:", (tickers if 'df_res' not in locals() else df_res['Asset']))
         if target:
-            ticker_full = target + (".JK" if market == "IHSG" else "-USD") if "." not in target and "-" not in target else target
+            ticker_full = target if (".JK" in target or "-USD" in target) else target + (".JK" if market == "IHSG" else "-USD")
             df_p = compute_waves(fetch_mtf_data(ticker_full, timeframe))
             if df_p is not None:
                 fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.03)
@@ -242,20 +239,15 @@ def main():
                 fig.add_trace(go.Scatter(x=df_p.index, y=df_p['white_line'], name="White Wave", line=dict(color='white', width=2)), row=2, col=1)
                 fig.add_trace(go.Scatter(x=df_p.index, y=df_p['purple_line'], name="Purple Wave", line=dict(color='#D500F9', width=1.5)), row=2, col=1)
                 for l, c in [(80, 'red'), (0, 'gray'), (-80, 'green')]: fig.add_hline(y=l, line_dash="dash", line_color=c, opacity=0.3, row=2, col=1)
-                fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
+                fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False, title=f"Visual Analysis: {target}")
                 st.plotly_chart(fig, use_container_width=True)
 
     with tab_lib:
-        st.markdown("### 📚 Candlestick Cheat Sheet (Sesuai Kitab[span_9](start_span)[span_9](end_span))")
-        col_l1, col_l2 = st.columns(2)
-        with col_l1:
-            st.info("**Bullish Mat Hold (78% Win Rate)**")
-            st.write("Pola continuation paling kuat. Mencari breakout setelah koreksi dangkal 3 hari[span_10](start_span)[span_10](end_span).")
-            
-        with col_l2:
-            st.info("**Morning Star (Strong Reversal)**")
-            st.write("Sinyal mumpuni di area oversold. Membutuhkan candle ke-3 yang bertenaga[span_11](start_span)[span_11](end_span).")
-            
+        st.info("### 📚 Aulsome Reference Guide")
+        st.markdown("""
+        *   **Bullish Mat Hold**: Pola kelanjutan tren terkuat (78% success rate). Mencari retracement sehat sebelum breakout baru[span_8](start_span)[span_8](end_span).
+        *   **Super Yahud Status**: Label otomatis jika pola muncul saat harga jenuh jual disertai lonjakan volume signifikan[span_9](start_span)[span_9](end_span).
+        """)
 
 if __name__ == "__main__":
     main()
