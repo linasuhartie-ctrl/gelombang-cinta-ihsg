@@ -146,7 +146,7 @@ def fetch_data(ticker, timeframe):
 def get_ai_insight(asset, pattern, white, vol, quality, price):
     try:
         # Ganti ke model yang didukung saat ini
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         prompt = f"""
         Jelaskan analisis teknikal untuk {asset}.
         Harga: {price}, Pola: {pattern}, White Wave: {white}, Lonjakan Volume: {vol}x, Quality: {quality}.
