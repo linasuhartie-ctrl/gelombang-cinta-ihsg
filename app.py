@@ -6,20 +6,21 @@ import ta
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import warnings
+import time
 from concurrent.futures import ThreadPoolExecutor
-from groq import Groq # Library baru untuk Groq
+from groq import Groq
 
-# Memastikan semua tanda kutip lurus standar agar tidak error
+# Membersihkan peringatan dan tanda kutip nakal
 warnings.filterwarnings("ignore")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 0. API & CONFIG
 # ──────────────────────────────────────────────────────────────────────────────
 try:
-    # Mengambil kunci Groq dari Secrets
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+    # Pastikan di Secrets tertulis GROQ_KEY
+    client = Groq(api_key=st.secrets["GROQ_KEY"])
 except Exception:
-    st.error("⚠️ GROQ_API_KEY tidak ditemukan di Secrets! Silakan tambahkan di dashboard Streamlit.")
+    st.error("⚠️ GROQ_KEY tidak ditemukan di Secrets! Tambahkan di dashboard Streamlit.")
 
 st.set_page_config(page_title="Aulsome Screener", page_icon="🔮", layout="wide")
 
@@ -78,13 +79,13 @@ C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN
 DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR 
 GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO 
 TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE 
-FLOW MIR ANC RARE CLV ALPHA FIS CHESS QI GHST VOXEL BNX NMR VIB AST OAX 
-DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB 
-MOVR SYN HIGH KP3R SNT MULTI VANRY
+FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB 
+AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR 
+BOND MOB MOVR SYN HIGH KP3R SNT MULTI VANRY
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. CORE LOGIC (AULSOME ENGINE)
+# 1. CORE LOGIC
 # ──────────────────────────────────────────────────────────────────────────────
 
 def pandas_wma(series, window):
@@ -92,20 +93,23 @@ def pandas_wma(series, window):
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
 def compute_waves(df):
-    if df is None or len(df) < 30: return None
+    if df is None or len(df) < 30:
+        return None
     df = df.copy()
     rsi_raw = ta.momentum.rsi(df["Close"], window=14)
     df["purple_line"] = ((rsi_raw - 50) * 2).ewm(span=3, adjust=False).mean()
-    hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
+    hh = df["High"].rolling(20).max()
+    ll = df["Low"].rolling(20).min()
     diff = (hh - ll).replace(0, 0.001)
     struct_raw = ((df["Close"] - ll) / diff) * 200 - 100
     df["white_line"] = pandas_wma(struct_raw, 8)
     return df
 
 def detect_patterns(df):
-    if df is None or len(df) < 6: return "Neutral"
+    if df is None or len(df) < 6:
+        return "Neutral"
     c1, c2, c3, c4, c5 = [df.iloc[-i] for i in range(5, 0, -1)]
-    body5 = abs(c5["Close"] - c5["Open"])
+    body5     = abs(c5["Close"] - c5["Open"])
     l_shadow5 = min(c5["Close"], c5["Open"]) - c5["Low"]
     u_shadow5 = c5["High"] - max(c5["Close"], c5["Open"])
 
@@ -113,147 +117,315 @@ def detect_patterns(df):
        (c2["Close"] < c2["Open"]) and (min(c2["Low"], c3["Low"], c4["Low"]) > c1["Low"]) and \
        (c5["Close"] > c5["Open"]) and (c5["Close"] > c2["High"]):
         return "Bullish Mat Hold"
-    if (c3["Close"] < c3["Open"]) and (abs(c4["Close"] - c4["Open"]) < abs(c3["Close"] - c3["Open"]) * 0.3) and \
-       (c5["Close"] > c5["Open"]) and (c5["Close"] > (c3["Open"] + c3["Close"])/2):
+
+    if (c3["Close"] < c3["Open"]) and \
+       (abs(c4["Close"] - c4["Open"]) < abs(c3["Close"] - c3["Open"]) * 0.3) and \
+       (c5["Close"] > c5["Open"]) and (c5["Close"] > (c3["Open"] + c3["Close"]) / 2):
         return "Morning Star"
+
     if (c4["Close"] < c4["Open"]) and (c5["Close"] > c5["Open"]) and \
        (c5["Open"] <= c4["Close"]) and (c5["Close"] >= c4["Open"]):
         return "Bullish Engulfing"
+
     if (l_shadow5 >= 2 * body5) and (u_shadow5 <= 0.2 * body5) and (body5 > 0):
         return "Hammer"
+
     return "Neutral"
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data(ticker, timeframe):
     try:
-        if timeframe == "15m": p, i = "5d", "15m"
+        if timeframe == "15m":  p, i = "5d",  "15m"
         elif timeframe == "1h": p, i = "1mo", "1h"
         elif timeframe == "4h": p, i = "2mo", "1h"
-        else: p, i = "1y", "1d"
+        else:                   p, i = "1y",  "1d"
         df = yf.download(ticker, period=p, interval=i, progress=False, auto_adjust=True)
-        if df.empty: return None
+        if df.empty:
+            return None
         if timeframe == "4h":
-            df = df.resample("4H").agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+            df = df.resample("4H").agg({
+                "Open": "first", "High": "max",
+                "Low": "min", "Close": "last", "Volume": "sum"
+            }).dropna()
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = df.columns.get_level_values(0)
         return df
-    except: return None
-
-def get_ai_insight(asset, pattern, white, vol, quality, price):
-    try:
-        # ✅ FITUR: Menggunakan Llama 3.3 melalui Groq
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Anda adalah analis profesional 'Aulsome Screener'. Berikan analisis teknikal yang tajam dan gunakan istilah 'Super Yahud' untuk sinyal yang sangat bagus."
-                },
-                {
-                    "role": "user",
-                    "content": f"Analisis aset {asset}. Harga {price}, Pola {pattern}, White Wave {white}, Vol Spike {vol}x, Status {quality}. Berikan insight dalam 2 paragraf padat."
-                }
-            ],
-            model="llama-3.3-70b-versatile", # Model Llama tercepat di Groq
-            temperature=0.7,
-        )
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        return f"Waduh, mesin Groq-nya lagi pusing: {str(e)}"
+    except:
+        return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. INTERFACE (AULSOME UI)
+# 2. AI INSIGHT — GROQ + RETRY + CONTEXT
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_price_context(df, price):
+    """Hitung konteks harga tambahan dari dataframe."""
+    try:
+        pct_change  = ((df["Close"].iloc[-1] - df["Close"].iloc[-2]) / df["Close"].iloc[-2]) * 100
+        high_period = float(df["High"].max())
+        low_period  = float(df["Low"].min())
+        dist_high   = ((price - high_period) / high_period) * 100
+        dist_low    = ((price - low_period)  / low_period)  * 100
+        avg_vol_5   = float(df["Volume"].iloc[-6:-1].mean())
+        last_vol    = float(df["Volume"].iloc[-1])
+        return {
+            "pct_change":  round(pct_change,  2),
+            "high_period": round(high_period, 4),
+            "low_period":  round(low_period,  4),
+            "dist_high":   round(dist_high,   1),
+            "dist_low":    round(dist_low,    1),
+            "last_volume": int(last_vol),
+            "avg_vol_5":   int(avg_vol_5),
+        }
+    except:
+        return {}
+
+def get_ai_insight(asset, pattern, white, vol, quality, price, df=None):
+    # Bangun konteks harga tambahan
+    price_ctx = ""
+    if df is not None:
+        ctx = build_price_context(df, price)
+        if ctx:
+            price_ctx = f"""
+    - Perubahan vs Candle Sebelumnya : {ctx.get('pct_change', 'N/A')}%
+    - High Periode                   : {ctx.get('high_period', 'N/A')} (Jarak dari High: {ctx.get('dist_high', 'N/A')}%)
+    - Low Periode                    : {ctx.get('low_period',  'N/A')} (Jarak dari Low : {ctx.get('dist_low',  'N/A')}%)
+    - Volume Terakhir                : {ctx.get('last_volume', 'N/A'):,}
+    - Avg Volume 5 Candle Terakhir   : {ctx.get('avg_vol_5',   'N/A'):,}"""
+
+    prompt = f"""
+Analisis aset berikut untuk Pak Aul:
+
+ASET             : {asset}
+HARGA SEKARANG   : {price}{price_ctx}
+POLA CANDLESTICK : {pattern}
+WHITE WAVE       : {white} (Skala -100 s/d +100; makin rendah = makin oversold)
+LONJAKAN VOLUME  : {vol}x dibanding rata-rata 5 candle
+STATUS QUALITY   : {quality}
+
+Tugas Anda — jawab dengan ANGKA KONKRET, bukan perkiraan samar:
+
+### 1. Summary Key Points
+
+Analisis dari 3 sudut pandang:
+- **Teknikal**: Interpretasi posisi White Wave + pola candlestick + momentum.
+- **Bandarmology**: Baca psikologi volume — akumulasi institusional atau distribusi retail?
+- **Sentimen**: Kesimpulan bullish / bearish / sideways secara keseluruhan.
+
+### 2. Support & Resistance
+Berikan 2 level Support dan 2 level Resistance dalam angka spesifik.
+
+### 3. Trading Plan
+- **Entry Area** : (harga konkret)
+- **Target TP1** : (harga konkret)
+- **Target TP2** : (harga konkret)
+- **Stop Loss**  : (harga konkret)
+- **Risk/Reward Ratio**: Hitung dan sebutkan.
+
+### 4. Verdict
+Tutup dengan salah satu rating berikut:
+⭐⭐⭐⭐⭐ SUPER YAHUD — layak entry sekarang
+⭐⭐⭐ YAHUD — pantau, tunggu konfirmasi
+❌ SKIP — hindari, risiko terlalu tinggi
+
+Gunakan gaya profesional, lugas, dan percaya diri.
+"""
+
+    system_prompt = """Anda adalah AI Trading Expert eksklusif untuk Aulsome Screener milik Pak Aul.
+Aturan WAJIB:
+1. Semua angka harga (Support, Resistance, Entry, TP, SL) HARUS nilai numerik spesifik.
+2. Jika White Wave < -60 DAN Vol Spike > 1.5x -> sinyal kuat akumulasi institusional, wajib ditegaskan.
+3. Jika pattern "Neutral" DAN vol rendah -> rekomendasikan SKIP dengan tegas.
+4. Risk/Reward Ratio wajib dihitung secara eksplisit.
+5. Verdict HARUS salah satu: SUPER YAHUD / YAHUD / SKIP.
+6. Tulis dalam Bahasa Indonesia yang profesional dan percaya diri."""
+   
+    # Retry loop 3x
+    for attempt in range(3):
+        try:
+            chat_completion = client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user",   "content": prompt},
+                ],
+                model="llama-3.3-70b-versatile",
+                temperature=0.5,
+                max_tokens=900,
+            )
+            return chat_completion.choices[0].message.content
+        except Exception as e:
+            if attempt < 2:
+                time.sleep(2)
+                continue
+            return f"⚠️ Groq timeout setelah 3x percobaan. Error: {str(e)}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. UI & APP
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
-    st.sidebar.title("🔮 Aulsome Screener V3.5")
-    market = st.sidebar.radio("Universe:", ["IHSG", "Crypto"])
+    st.sidebar.title("🔮 Aulsome Screener V3.6")
+    market    = st.sidebar.radio("Market:", ["IHSG", "Crypto"])
     timeframe = st.sidebar.selectbox("Timeframe:", ["15m", "1h", "4h", "1d"], index=3)
-    mode = st.sidebar.selectbox("Mode Analysis:", ["Wave Matrix", "Candlestick Pattern"])
-    
+    mode      = st.sidebar.selectbox("Mode:", ["Wave Matrix", "Candlestick Pattern"])
+
     struct_range = None
     if mode == "Wave Matrix":
-        strategy = st.sidebar.selectbox("Signal Wave:", ["Level Garis Putih", "Golden Cross", "Death Cross"])
-        # ✅ SLIDER GARIS PUTIH DIKEMBALIKAN
+        strategy = st.sidebar.selectbox("Signal:", ["Level Garis Putih", "Golden Cross", "Death Cross"])
         if strategy == "Level Garis Putih":
             struct_range = st.sidebar.slider("Range Garis Putih (Min-Max)", -100, 100, (-100, -50))
     else:
-        strategy = st.sidebar.selectbox("Pattern Candlestick:", ["Bullish Mat Hold", "Morning Star", "Bullish Engulfing", "Hammer"])
+        strategy = st.sidebar.selectbox("Pattern:", ["Bullish Mat Hold", "Morning Star", "Bullish Engulfing", "Hammer"])
 
-    min_vol = st.sidebar.number_input("Min Vol (Mln)", 0.1, 5000.0, 10.0)
-    tickers = sorted([t.strip() + (".JK" if market == "IHSG" else "-USD") for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()])
+    min_vol = st.sidebar.number_input("Min Volume (Mln)", 0.1, 5000.0, 10.0)
 
-    st.title("🚀 Aulsome Screener — Groq Intelligence")
-    tab_scan, tab_ai = st.tabs(["📊 Market Scan", "🧠 Deep Insight AI"])
+    tickers = sorted([
+        t.strip() + (".JK" if market == "IHSG" else "-USD")
+        for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()
+    ])
 
+    st.title("🚀 Aulsome Screener — Professional Analytics")
+    tab_scan, tab_ai = st.tabs(["📊 Scan Market", "🧠 Deep Analysis & AI Insight"])
+
+    # ── TOMBOL SCAN ───────────────────────────────────────────────────────────
     if st.sidebar.button(f"RUN SCAN ({len(tickers)} ASSETS)", use_container_width=True):
-        results = []
+        st.session_state["insight_cache"] = {}
+        results  = []
         progress = st.progress(0)
-        
+
         def process_ticker(t):
             df_raw = fetch_data(t, timeframe)
-            df = compute_waves(df_raw)
+            df     = compute_waves(df_raw)
             if df is not None and len(df) >= 10:
-                latest, prev = df.iloc[-1], df.iloc[-2]
-                turnover = (latest["Close"] * latest["Volume"]) / 1_000_000 if market == "Crypto" else latest["Volume"] / 1_000_000
-                if turnover < min_vol: return None
-                
-                avg_vol = df["Volume"].iloc[-6:-1].mean()
+                latest = df.iloc[-1]
+                prev   = df.iloc[-2]
+                turnover = (
+                    (latest["Close"] * latest["Volume"]) / 1_000_000
+                    if market == "Crypto"
+                    else latest["Volume"] / 1_000_000
+                )
+                if turnover < min_vol:
+                    return None
+
+                avg_vol   = df["Volume"].iloc[-6:-1].mean()
                 vol_ratio = latest["Volume"] / avg_vol if avg_vol > 0 else 1.0
-                
+
                 match = False
                 p = detect_patterns(df)
+
                 if mode == "Wave Matrix":
-                    if strategy == "Level Garis Putih":
-                        if struct_range[0] <= latest["white_line"] <= struct_range[1]: match = True
-                    elif strategy == "Golden Cross" and prev["white_line"] <= prev["purple_line"] and latest["white_line"] > latest["purple_line"]: match = True
-                    elif strategy == "Death Cross" and prev["white_line"] >= prev["purple_line"] and latest["white_line"] < latest["purple_line"]: match = True
+                    if strategy == "Level Garis Putih" and struct_range:
+                        if struct_range[0] <= latest["white_line"] <= struct_range[1]:
+                            match = True
+                    elif strategy == "Golden Cross":
+                        if prev["white_line"] <= prev["purple_line"] and latest["white_line"] > latest["purple_line"]:
+                            match = True
+                    elif strategy == "Death Cross":
+                        if prev["white_line"] >= prev["purple_line"] and latest["white_line"] < latest["purple_line"]:
+                            match = True
                 else:
-                    if p == strategy: match = True
-                
+                    if p == strategy:
+                        match = True
+
                 if match:
                     quality = "✅ YAHUD"
-                    if vol_ratio > 1.5 and latest["white_line"] < -60: quality = "🔥 SUPER YAHUD"
-                    return {"Asset": t.replace(".JK","").replace("-USD",""), "Price": round(latest["Close"], 2), "Pattern": p, "White": round(latest["white_line"], 1), "Vol Spike": round(vol_ratio, 2), "Quality": quality}
+                    if vol_ratio > 1.5 and latest["white_line"] < -60:
+                        quality = "🔥 SUPER YAHUD"
+                    return {
+                        "Asset":     t.replace(".JK", "").replace("-USD", ""),
+                        "Price":     round(float(latest["Close"]), 4),
+                        "Pattern":   p,
+                        "White":     round(float(latest["white_line"]), 1),
+                        "Vol Spike": round(vol_ratio, 2),
+                        "Quality":   quality,
+                    }
             return None
 
         with ThreadPoolExecutor(max_workers=20) as executor:
             scanned = 0
             for res in executor.map(process_ticker, tickers):
                 scanned += 1
-                if res: results.append(res)
+                if res:
+                    results.append(res)
                 progress.progress(scanned / len(tickers))
-        
+
         st.session_state["results"] = results
+        st.sidebar.success(f"✅ {len(results)} sinyal ditemukan.")
 
+    # ── TAB SCAN ──────────────────────────────────────────────────────────────
     with tab_scan:
-        if "results" in st.session_state and st.session_state["results"]:
-            st.dataframe(pd.DataFrame(st.session_state["results"]), use_container_width=True, hide_index=True)
-        else: st.info("Scan market dulu di sidebar.")
+        if st.session_state.get("results"):
+            df_res = pd.DataFrame(st.session_state["results"])
+            def highlight_quality(row):
+                if "SUPER" in str(row["Quality"]):
+                    return ["background-color: #1a3a1a"] * len(row)
+                return [""] * len(row)
 
+            st.dataframe(
+                df_res.style.apply(highlight_quality, axis=1),
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Jalankan scan dari sidebar terlebih dahulu.")
+
+    # ── TAB AI ────────────────────────────────────────────────────────────────
     with tab_ai:
-        if "results" in st.session_state and st.session_state["results"]:
+        if st.session_state.get("results"):
             res_data = st.session_state["results"]
-            selected = st.selectbox("Pilih Aset:", [r["Asset"] for r in res_data])
-            data = next(i for i in res_data if i["Asset"] == selected)
-            
-            col_ch, col_ai = st.columns([2, 1])
-            with col_ch:
+            selected = st.selectbox("Pilih Aset untuk Analisis:", [r["Asset"] for r in res_data])
+            data     = next(r for r in res_data if r["Asset"] == selected)
+
+            col_chart, col_ai = st.columns([2, 1])
+
+            with col_chart:
                 t_full = selected + (".JK" if market == "IHSG" else "-USD")
-                df_p = compute_waves(fetch_data(t_full, timeframe))
+                df_raw = fetch_data(t_full, timeframe)
+                df_p   = compute_waves(df_raw)
                 if df_p is not None:
-                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4])
+                    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.6, 0.4], vertical_spacing=0.05)
                     fig.add_trace(go.Candlestick(x=df_p.index, open=df_p["Open"], high=df_p["High"], low=df_p["Low"], close=df_p["Close"], name="Price"), row=1, col=1)
-                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p["white_line"], name="White Wave", line=dict(color="white")), row=2, col=1)
-                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p["purple_line"], name="Purple Wave", line=dict(color="purple")), row=2, col=1)
-                    fig.update_layout(template="plotly_dark", height=600, xaxis_rangeslider_visible=False)
+                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p["white_line"], name="White Wave", line=dict(color="white", width=1.5)), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=df_p.index, y=df_p["purple_line"], name="Purple Wave", line=dict(color="#9b59b6", width=1.5)), row=2, col=1)
+                    fig.add_hline(y=-60, line_dash="dot",  line_color="green", row=2, col=1)
+                    fig.add_hline(y=60,  line_dash="dot",  line_color="red",   row=2, col=1)
+                    fig.update_layout(template="plotly_dark", height=620, xaxis_rangeslider_visible=False)
                     st.plotly_chart(fig, use_container_width=True)
-            
+
             with col_ai:
-                st.subheader("🧠 Groq Llama 3.3 Insight")
-                if st.button("🪄 Get AI Insight"):
-                    with st.spinner("Membedah market secepat kilat..."):
-                        insight = get_ai_insight(selected, data["Pattern"], data["White"], data["Vol Spike"], data["Quality"], data["Price"])
-                        st.markdown(insight)
-        else: st.warning("Scan market dulu.")
+                st.subheader("🧠 Groq AI Professional Insight")
+                col_q, col_v = st.columns(2)
+                col_q.metric("Quality", data["Quality"])
+                col_v.metric("Vol Spike", f"{data['Vol Spike']}x")
+                
+                if "insight_cache" not in st.session_state:
+                    st.session_state["insight_cache"] = {}
+
+                cache_key = f"{selected}_{data['Pattern']}_{data['White']}_{data['Vol Spike']}"
+
+                if st.button("🪄 Get Comprehensive AI Insight", use_container_width=True):
+                    if cache_key in st.session_state["insight_cache"]:
+                        st.info("📋 Mengambil hasil dari memori (Cache)")
+                        st.markdown(st.session_state["insight_cache"][cache_key])
+                    else:
+                        with st.spinner("🔄 Sedang meramu strategi trading..."):
+                            insight = get_ai_insight(
+                                asset   = selected,
+                                pattern = data["Pattern"],
+                                white   = data["White"],
+                                vol     = data["Vol Spike"],
+                                quality = data["Quality"],
+                                price   = data["Price"],
+                                df      = df_raw,
+                            )
+                            st.session_state["insight_cache"][cache_key] = insight
+                            st.markdown(insight)
+
+                if cache_key in st.session_state.get("insight_cache", {}):
+                    if st.button("🔄 Refresh Analisis", use_container_width=True):
+                        del st.session_state["insight_cache"][cache_key]
+                        st.rerun()
+        else:
+            st.warning("⚠️ Scan market dulu, Pak Aul!")
 
 if __name__ == "__main__":
     main()
