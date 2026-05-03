@@ -13,7 +13,7 @@ warnings.filterwarnings("ignore")
 # ──────────────────────────────────────────────────────────────────────────────
 # 0. SETUP & DATASET (MEGA VERSION)
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="MHALIK PREDICTIVE V3", page_icon="🔮", layout="wide")
+st.set_page_config(page_title="AulSome PREDICTIVE V3", page_icon="🔮", layout="wide")
 
 IHSG_MEGA = """
 AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO 
