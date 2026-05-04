@@ -14,7 +14,7 @@ import time
 
 # --- CONFIG ---
 st.set_page_config(
-    page_title="Aulsome Matrix Pro",
+    page_title="Aulsome Matrix Pro V4.2",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -33,9 +33,6 @@ def get_client():
     try: return Groq(api_key=st.secrets["GROQ_KEY"])
     except: return None
 
-def parse_universe(text, suffix):
-    return sorted([f"{t.strip()}{suffix}" for t in text.split() if t.strip()])
-
 def pandas_wma(series, window):
     weights = np.arange(1, window + 1)
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
@@ -49,27 +46,29 @@ def fetch_data(ticker, timeframe):
         df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
         if df.empty: return None
         if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        if timeframe == "4h":
-            df = df.resample("4H").agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
         return df.dropna()
     except: return None
 
 def compute_matrix_waves(df):
     if df is None or len(df) < 50: return None
     df = df.copy()
+    
+    # Standard Technicals
     macd_obj = ta.trend.MACD(df["Close"])
     df["macd_hist"] = macd_obj.macd_diff()
-    df["stoch_k"] = ta.momentum.StochasticOscillator(df["High"], df["Low"], df["Close"]).stoch()
     df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
-    df["ema20"] = df["Close"].ewm(span=20).mean()
+    df["stoch_k"] = ta.momentum.StochasticOscillator(df["High"], df["Low"], df["Close"]).stoch()
 
-    # Waves
+    # Matrix Waves
     hl = (df["High"] - df["Low"]).replace(0, 0.001)
     mf_vol = (((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl) * df["Volume"]
     df["vol_wave"] = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 0.001) * 100).ewm(span=5).mean()
+    
     pc = df["Close"].diff()
     df["trend_wave"] = 100 * (pc.ewm(span=25).mean().ewm(span=13).mean() / pc.abs().ewm(span=25).mean().ewm(span=13).mean().replace(0, 0.001))
+    
     df["dom_wave"] = ((ta.momentum.rsi(df["Close"]) - 50) * 2).ewm(span=3).mean()
+    
     hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
     df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
     
@@ -78,40 +77,74 @@ def compute_matrix_waves(df):
 def add_metrics(df):
     if df is None: return None
     df = df.copy()
-    df["value_now"] = df["Close"] * df["Volume"]
-    df["value_ma20"] = df["value_now"].rolling(20).mean()
-    df["inflow_ratio"] = df["value_now"] / df["value_ma20"].replace(0, 0.001)
-    df["value_now_m"] = df["value_now"] / 1e6
+    df["value_now_m"] = (df["Close"] * df["Volume"]) / 1e6
+    df["value_ma20"] = df["value_now_m"].rolling(20).mean()
+    df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 0.001)
     
-    # Bull Score
+    # Score Engine
     scores = []
     for i in range(len(df)):
         if i < 30: scores.append(0); continue
-        row, prev = df.iloc[i], df.iloc[i-1]
+        r, p = df.iloc[i], df.iloc[i-1]
         s = 0
-        if row["Close"] > row["Open"]: s += 10
-        if row["vol_wave"] > 0: s += 15
-        if row["trend_wave"] > 0: s += 15
-        if row["inflow_ratio"] > 1.2: s += 20
-        if row["macd_hist"] > 0: s += 10
-        if row["rsi"] > 50: s += 10
-        if row["struct_wave"] > -50: s += 20
+        if r["Close"] > r["Open"]: s += 10
+        if r["vol_wave"] > 0: s += 15
+        if r["trend_wave"] > 0: s += 15
+        if r["inflow_ratio"] > 1.2: s += 20
+        if r["macd_hist"] > 0: s += 10
+        if r["struct_wave"] > -50: s += 30
         scores.append(min(s, 100))
     df["bull_score"] = scores
     return df
 
+# --- CANDLESTICK PATTERN ENGINE ---
 def detect_patterns(df):
     if df is None or len(df) < 5: return "Neutral"
-    c4, c5 = df.iloc[-2], df.iloc[-1]
-    if (c4["Close"] < c4["Open"]) and (c5["Close"] > c5["Open"]) and (c5["Close"] >= c4["Open"]): return "Bullish Engulfing"
-    if (c5["High"] - max(c5["Open"], c5["Close"])) > 2 * abs(c5["Open"] - c5["Close"]): return "Shooting Star"
-    if (min(c5["Open"], c5["Close"]) - c5["Low"]) > 2 * abs(c5["Open"] - c5["Close"]): return "Hammer"
+    
+    # Ambil 5 candle terakhir
+    c = [df.iloc[-i] for i in range(5, 0, -1)] # c[4] adalah yang terbaru
+    
+    # Basic Props
+    def is_bull(node): return node["Close"] > node["Open"]
+    def is_bear(node): return node["Open"] > node["Close"]
+    def body_size(node): return abs(node["Close"] - node["Open"])
+    
+    # 1. Pin Bar Bullish (Hammer)
+    low_shadow = min(c[4]["Open"], c[4]["Close"]) - c[4]["Low"]
+    if low_shadow > 2 * body_size(c[4]) and (c[4]["High"] - max(c[4]["Open"], c[4]["Close"])) < 0.5 * body_size(c[4]):
+        return "Bullish Pin Bar / Hammer"
+
+    # 2. Pin Bar Bearish (Shooting Star)
+    high_shadow = c[4]["High"] - max(c[4]["Open"], c[4]["Close"])
+    if high_shadow > 2 * body_size(c[4]) and (min(c[4]["Open"], c[4]["Close"]) - c[4]["Low"]) < 0.5 * body_size(c[4]):
+        return "Bearish Pin Bar / Shooting Star"
+
+    # 3. Bullish Engulfing
+    if is_bear(c[3]) and is_bull(c[4]) and c[4]["Close"] >= c[3]["Open"] and c[4]["Open"] <= c[3]["Close"]:
+        return "Bullish Engulfing"
+
+    # 4. Bearish Engulfing
+    if is_bull(c[3]) and is_bear(c[4]) and c[4]["Close"] <= c[3]["Open"] and c[4]["Open"] >= c[3]["Close"]:
+        return "Bearish Engulfing"
+
+    # 5. Three White Soldiers
+    if all(is_bull(c[i]) for i in [2,3,4]) and c[4]["Close"] > c[3]["Close"] > c[2]["Close"]:
+        return "Three White Soldiers"
+
+    # 6. Three Black Crows
+    if all(is_bear(c[i]) for i in [2,3,4]) and c[4]["Close"] < c[3]["Close"] < c[2]["Close"]:
+        return "Three Black Crows"
+
+    # 7. Morning Star
+    if is_bear(c[2]) and body_size(c[3]) < 0.3 * body_size(c[2]) and is_bull(c[4]) and c[4]["Close"] > (c[2]["Open"] + c[2]["Close"])/2:
+        return "Morning Star"
+
     return "Neutral"
 
-# --- MAIN ---
+# --- APP INTERFACE ---
 def main():
     init_state()
-    st.title("🔮 Aulsome Matrix Pro V4.1")
+    st.title("🔮 Aulsome Matrix Pro V4.2")
     
     with st.sidebar:
         st.header("⚙️ Control Panel")
@@ -119,27 +152,35 @@ def main():
         timeframe = st.selectbox("Timeframe", ["15m","1h","4h","1d"], index=3)
         mode = st.selectbox("Mode Analysis", ["Wave Matrix","Candlestick Pattern","Inflow Detector"])
         
-        # --- DROPDOWN DINAMIS (PILIHAN PAK AUL) ---
+        # LOGIC DROPDOWN DINAMIS
         strategy = None
-        struct_range = None
-
+        struct_range = (-100, 100)
+        
         if mode == "Wave Matrix":
-            strategy = st.selectbox("Wave Signal", ["Level Garis Putih","Golden Cross (Struct > Dom)","Bandar Akumulasi"])
-            if strategy == "Level Garis Putih":
-                struct_range = st.slider("Range Garis Putih", -100, 100, (-100, -50))
+            strategy = st.selectbox("Wave Signal", ["Level Garis Putih (Struktur)","Golden Cross (Struct > Dom)","Bandar Akumulasi"])
+            if "Garis Putih" in strategy:
+                struct_range = st.slider("Range Struktur (Putih)", -100, 100, (-100, -50))
         
         elif mode == "Candlestick Pattern":
-            strategy = st.selectbox("Pilih Pattern", ["Bullish Engulfing","Hammer","Shooting Star","Morning Star"])
+            strategy = st.selectbox("Pilih Pola", [
+                "Bullish Pin Bar / Hammer",
+                "Bearish Pin Bar / Shooting Star",
+                "Bullish Engulfing",
+                "Bearish Engulfing",
+                "Three White Soldiers",
+                "Three Black Crows",
+                "Morning Star"
+            ])
             
         else: # Inflow
-            strategy = st.selectbox("Inflow Signal", ["High Inflow (≥1.5x)", "Strong Value", "Inflow + Bandar"])
+            strategy = st.selectbox("Inflow Signal", ["High Inflow (≥1.5x)", "Inflow + Bandar"])
 
         st.markdown("---")
         min_turnover = st.number_input("Min Turnover (Mln)", 0.0, 5000.0, 10.0)
         run_scan = st.button("🚀 RUN SCAN", use_container_width=True)
 
     suffix = ".JK" if market == "IHSG" else "-USD"
-    tickers = parse_universe(IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA, suffix)
+    tickers = sorted([f"{t.strip()}{suffix}" for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split() if t.strip()])
 
     tab1, tab2 = st.tabs(["📊 Scan Market", "🧠 Deep Journey"])
 
@@ -154,28 +195,28 @@ def main():
                 if df is None or len(df) < 30: return None
                 
                 latest, prev = df.iloc[-1], df.iloc[-2]
-                turnover = latest["value_now_m"]
-                if turnover < min_turnover: return None
+                if latest["value_now_m"] < min_turnover: return None
                 
                 # --- FILTERING LOGIC ---
                 matched = False
+                current_pattern = detect_patterns(df)
+                
                 if mode == "Wave Matrix":
                     if "Garis Putih" in strategy: matched = struct_range[0] <= latest["struct_wave"] <= struct_range[1]
                     elif "Golden Cross" in strategy: matched = prev["struct_wave"] < prev["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
-                    elif "Bandar" in strategy: matched = latest["vol_wave"] > 20
+                    elif "Akumulasi" in strategy: matched = latest["vol_wave"] > 20
                 elif mode == "Candlestick Pattern":
-                    matched = (detect_patterns(df) == strategy)
+                    matched = (current_pattern == strategy)
                 else: # Inflow
                     if "High" in strategy: matched = latest["inflow_ratio"] >= 1.5
-                    elif "Strong" in strategy: matched = latest["value_now_m"] > 1000
                     elif "Bandar" in strategy: matched = latest["inflow_ratio"] > 1.2 and latest["vol_wave"] > 0
                 
                 if matched:
                     return {
                         "Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2),
-                        "Bandar": round(latest["vol_wave"],1), "Trend": round(latest["trend_wave"],1),
+                        "Bandar": round(latest["vol_wave"],1), "Struct": round(latest["struct_wave"],1),
                         "Inflow": round(latest["inflow_ratio"],2), "Score": int(latest["bull_score"]),
-                        "Level": bullish_level(latest["bull_score"]), "Pattern": detect_patterns(df)
+                        "Pattern": current_pattern
                     }
                 return None
 
@@ -195,30 +236,24 @@ def main():
             df_p = add_metrics(compute_matrix_waves(fetch_data(selected + suffix, timeframe)))
             if df_p is not None:
                 st.plotly_chart(build_chart(df_p), use_container_width=True)
-                if st.button("🪄 Get AI Insight"):
+                if st.button("🪄 Get AI Analysis"):
                     client = get_client()
-                    if client: st.markdown(get_ai_insight(client, selected, df_p))
-                    else: st.error("API Key Groq mana bos?")
+                    if client:
+                        latest = df_p.iloc[-1]
+                        prompt = f"Analisis teknikal {selected}. Harga: {latest['Close']}, Bull Score: {latest['bull_score']}, Inflow: {latest['inflow_ratio']}x. Berikan strategi Entry dan Exit yang tajam."
+                        resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
+                        st.markdown(resp.choices[0].message.content)
+                    else: st.error("Pasang GROQ_KEY dulu di Secrets!")
+        else: st.info("Scan market dulu bos!")
 
 def build_chart(df):
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.25, 0.25])
     fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
-    for c, clr in [("vol_wave","#FFD600"),("trend_wave","#00BFFF"),("struct_wave","#FFFFFF")]:
-        fig.add_trace(go.Scatter(x=df.index, y=df[c], name=c, line=dict(color=clr)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="Bandar", line=dict(color="#FFD600")), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="Struktur", line=dict(color="#FFFFFF")), row=2, col=1)
     fig.add_trace(go.Bar(x=df.index, y=df["inflow_ratio"], name="Inflow"), row=3, col=1)
     fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
     return fig
-
-def bullish_level(score):
-    if score >= 80: return "🔥 SUPER"
-    if score >= 60: return "✅ YAHUD"
-    return "👀 WATCH"
-
-def get_ai_insight(client, asset, df):
-    latest = df.iloc[-1]
-    prompt = f"Analisis {asset} harga {latest['Close']}. Score: {latest['bull_score']}. Berikan Plan Entry & TP."
-    resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
-    return resp.choices[0].message.content
 
 if __name__ == "__main__":
     main()
