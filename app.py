@@ -14,7 +14,7 @@ import time
 
 # --- CONFIG ---
 st.set_page_config(
-    page_title="Aulsome Matrix Pro V4.2",
+    page_title="Aulsome Matrix Pro V4.3",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -49,174 +49,167 @@ def fetch_data(ticker, timeframe):
         return df.dropna()
     except: return None
 
-def compute_matrix_waves(df):
+def compute_technicals(df):
     if df is None or len(df) < 50: return None
     df = df.copy()
     
-    # Standard Technicals
-    macd_obj = ta.trend.MACD(df["Close"])
-    df["macd_hist"] = macd_obj.macd_diff()
-    df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
-    df["stoch_k"] = ta.momentum.StochasticOscillator(df["High"], df["Low"], df["Close"]).stoch()
-
+    # EMAs for Trend Filter
+    df["ema50"] = ta.trend.ema_indicator(df["Close"], window=50)
+    df["ema200"] = ta.trend.ema_indicator(df["Close"], window=200)
+    
+    # Volume SMA
+    df["vol_sma20"] = df["Volume"].rolling(20).mean()
+    
     # Matrix Waves
     hl = (df["High"] - df["Low"]).replace(0, 0.001)
     mf_vol = (((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl) * df["Volume"]
     df["vol_wave"] = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 0.001) * 100).ewm(span=5).mean()
-    
     pc = df["Close"].diff()
     df["trend_wave"] = 100 * (pc.ewm(span=25).mean().ewm(span=13).mean() / pc.abs().ewm(span=25).mean().ewm(span=13).mean().replace(0, 0.001))
-    
     df["dom_wave"] = ((ta.momentum.rsi(df["Close"]) - 50) * 2).ewm(span=3).mean()
-    
     hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
     df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
     
-    return df.dropna()
-
-def add_metrics(df):
-    if df is None: return None
-    df = df.copy()
+    # Bull Score
     df["value_now_m"] = (df["Close"] * df["Volume"]) / 1e6
-    df["value_ma20"] = df["value_now_m"].rolling(20).mean()
-    df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 0.001)
-    
-    # Score Engine
     scores = []
     for i in range(len(df)):
         if i < 30: scores.append(0); continue
-        r, p = df.iloc[i], df.iloc[i-1]
+        r = df.iloc[i]
         s = 0
         if r["Close"] > r["Open"]: s += 10
         if r["vol_wave"] > 0: s += 15
         if r["trend_wave"] > 0: s += 15
-        if r["inflow_ratio"] > 1.2: s += 20
-        if r["macd_hist"] > 0: s += 10
         if r["struct_wave"] > -50: s += 30
         scores.append(min(s, 100))
     df["bull_score"] = scores
-    return df
+    return df.dropna()
 
-# --- CANDLESTICK PATTERN ENGINE ---
+# --- SNIPER ENGINE ---
+def check_sniper_entry(df, swing_len=5, zone_pct=1.5):
+    if len(df) < 30: return False
+    
+    latest = df.iloc[-1]
+    
+    # 1. Trend Filter
+    is_uptrend = latest["Close"] > latest["ema200"]
+    
+    # 2. Volume Spike (Min 20% above SMA20)
+    is_vol_spike = latest["Volume"] > (latest["vol_sma20"] * 1.2)
+    
+    # 3. Pivot Support Logic
+    # Mencari Pivot Low dalam window swing_len
+    pivot_lows = []
+    for i in range(swing_len, len(df) - swing_len):
+        is_pivot = True
+        for j in range(1, swing_len + 1):
+            if df.iloc[i]["Low"] > df.iloc[i-j]["Low"] or df.iloc[i]["Low"] > df.iloc[i+j]["Low"]:
+                is_pivot = False
+                break
+        if is_pivot:
+            pivot_lows.append(df.iloc[i]["Low"])
+    
+    in_support_zone = False
+    if pivot_lows:
+        last_pivot_low = pivot_lows[-1]
+        sup_top = last_pivot_low * (1 + (zone_pct / 100))
+        sup_bot = last_pivot_low
+        if latest["Low"] <= sup_top and latest["Close"] >= sup_bot:
+            in_support_zone = True
+            
+    # 4. Bullish Reversal Candle (Body > 40% total range)
+    candle_range = latest["High"] - latest["Low"]
+    body_size = latest["Close"] - latest["Open"]
+    bullish_candle = latest["Close"] > latest["Open"] and body_size > (candle_range * 0.4)
+    
+    return is_uptrend and in_support_zone and is_vol_spike and bullish_candle
+
+# --- PATTERN DETECTION ---
 def detect_patterns(df):
     if df is None or len(df) < 5: return "Neutral"
-    
-    # Ambil 5 candle terakhir
-    c = [df.iloc[-i] for i in range(5, 0, -1)] # c[4] adalah yang terbaru
-    
-    # Basic Props
+    c = [df.iloc[-i] for i in range(5, 0, -1)]
+    def body_size(node): return abs(node["Close"] - node["Open"])
     def is_bull(node): return node["Close"] > node["Open"]
     def is_bear(node): return node["Open"] > node["Close"]
-    def body_size(node): return abs(node["Close"] - node["Open"])
     
-    # 1. Pin Bar Bullish (Hammer)
-    low_shadow = min(c[4]["Open"], c[4]["Close"]) - c[4]["Low"]
-    if low_shadow > 2 * body_size(c[4]) and (c[4]["High"] - max(c[4]["Open"], c[4]["Close"])) < 0.5 * body_size(c[4]):
-        return "Bullish Pin Bar / Hammer"
-
-    # 2. Pin Bar Bearish (Shooting Star)
-    high_shadow = c[4]["High"] - max(c[4]["Open"], c[4]["Close"])
-    if high_shadow > 2 * body_size(c[4]) and (min(c[4]["Open"], c[4]["Close"]) - c[4]["Low"]) < 0.5 * body_size(c[4]):
-        return "Bearish Pin Bar / Shooting Star"
-
-    # 3. Bullish Engulfing
-    if is_bear(c[3]) and is_bull(c[4]) and c[4]["Close"] >= c[3]["Open"] and c[4]["Open"] <= c[3]["Close"]:
-        return "Bullish Engulfing"
-
-    # 4. Bearish Engulfing
-    if is_bull(c[3]) and is_bear(c[4]) and c[4]["Close"] <= c[3]["Open"] and c[4]["Open"] >= c[3]["Close"]:
-        return "Bearish Engulfing"
-
-    # 5. Three White Soldiers
-    if all(is_bull(c[i]) for i in [2,3,4]) and c[4]["Close"] > c[3]["Close"] > c[2]["Close"]:
-        return "Three White Soldiers"
-
-    # 6. Three Black Crows
-    if all(is_bear(c[i]) for i in [2,3,4]) and c[4]["Close"] < c[3]["Close"] < c[2]["Close"]:
-        return "Three Black Crows"
-
-    # 7. Morning Star
-    if is_bear(c[2]) and body_size(c[3]) < 0.3 * body_size(c[2]) and is_bull(c[4]) and c[4]["Close"] > (c[2]["Open"] + c[2]["Close"])/2:
-        return "Morning Star"
-
+    # Patterns
+    if (min(c[4]["Open"], c[4]["Close"]) - c[4]["Low"]) > 2 * body_size(c[4]): return "Hammer/Pin Bar"
+    if is_bear(c[3]) and is_bull(c[4]) and c[4]["Close"] >= c[3]["Open"]: return "Bullish Engulfing"
+    if all(is_bull(c[i]) for i in [2,3,4]) and c[4]["Close"] > c[3]["Close"]: return "Three White Soldiers"
     return "Neutral"
 
-# --- APP INTERFACE ---
+# --- MAIN INTERFACE ---
 def main():
     init_state()
-    st.title("🔮 Aulsome Matrix Pro V4.2")
+    st.title("🔮 Aulsome Matrix Pro V4.3")
     
     with st.sidebar:
-        st.header("⚙️ Control Panel")
+        st.header("⚙️ Filter Engine")
         market = st.radio("Universe", ["IHSG", "Crypto"], horizontal=True)
         timeframe = st.selectbox("Timeframe", ["15m","1h","4h","1d"], index=3)
-        mode = st.selectbox("Mode Analysis", ["Wave Matrix","Candlestick Pattern","Inflow Detector"])
+        mode = st.selectbox("Metode Screening", ["Sniper Filter 🎯", "Wave Matrix 🌊", "Candlestick Pattern 🕯️"])
         
-        # LOGIC DROPDOWN DINAMIS
         strategy = None
-        struct_range = (-100, 100)
+        sniper_strict = True
         
-        if mode == "Wave Matrix":
-            strategy = st.selectbox("Wave Signal", ["Level Garis Putih (Struktur)","Golden Cross (Struct > Dom)","Bandar Akumulasi"])
-            if "Garis Putih" in strategy:
-                struct_range = st.slider("Range Struktur (Putih)", -100, 100, (-100, -50))
+        if mode == "Sniper Filter 🎯":
+            st.info("🎯 Sniper Entry: Harga di Support + Trend Up + Vol Spike + Bullish Candle.")
+            sniper_strict = st.checkbox("Wajib Uptrend (EMA 200)", value=True)
         
-        elif mode == "Candlestick Pattern":
-            strategy = st.selectbox("Pilih Pola", [
-                "Bullish Pin Bar / Hammer",
-                "Bearish Pin Bar / Shooting Star",
-                "Bullish Engulfing",
-                "Bearish Engulfing",
-                "Three White Soldiers",
-                "Three Black Crows",
-                "Morning Star"
-            ])
-            
-        else: # Inflow
-            strategy = st.selectbox("Inflow Signal", ["High Inflow (≥1.5x)", "Inflow + Bandar"])
+        elif mode == "Wave Matrix 🌊":
+            strategy = st.selectbox("Signal", ["Garis Putih (Oversold)","Golden Cross","Bandar Akumulasi"])
+        
+        elif mode == "Candlestick Pattern 🕯️":
+            strategy = st.selectbox("Pola", ["Hammer/Pin Bar", "Bullish Engulfing", "Three White Soldiers"])
 
         st.markdown("---")
         min_turnover = st.number_input("Min Turnover (Mln)", 0.0, 5000.0, 10.0)
-        run_scan = st.button("🚀 RUN SCAN", use_container_width=True)
+        run_scan = st.button("🚀 MULAI SCANNING", use_container_width=True)
 
     suffix = ".JK" if market == "IHSG" else "-USD"
     tickers = sorted([f"{t.strip()}{suffix}" for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split() if t.strip()])
 
-    tab1, tab2 = st.tabs(["📊 Scan Market", "🧠 Deep Journey"])
+    tab_res, tab_deep = st.tabs(["📊 Hasil Screening", "🧠 Deep Journey"])
 
-    with tab1:
+    with tab_res:
         if run_scan:
             results = []
             prog = st.progress(0)
+            
             def process(t):
                 df = fetch_data(t, timeframe)
-                df = compute_matrix_waves(df)
-                df = add_metrics(df)
-                if df is None or len(df) < 30: return None
+                df = compute_technicals(df)
+                if df is None or len(df) < 40: return None
                 
-                latest, prev = df.iloc[-1], df.iloc[-2]
+                latest = df.iloc[-1]
                 if latest["value_now_m"] < min_turnover: return None
                 
-                # --- FILTERING LOGIC ---
                 matched = False
-                current_pattern = detect_patterns(df)
+                trigger = "Manual"
                 
-                if mode == "Wave Matrix":
-                    if "Garis Putih" in strategy: matched = struct_range[0] <= latest["struct_wave"] <= struct_range[1]
-                    elif "Golden Cross" in strategy: matched = prev["struct_wave"] < prev["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
+                if mode == "Sniper Filter 🎯":
+                    is_sniper = check_sniper_entry(df)
+                    if is_sniper:
+                        matched = True
+                        trigger = "SNIPER BUY"
+                
+                elif mode == "Wave Matrix 🌊":
+                    if "Putih" in strategy: matched = latest["struct_wave"] < -60
+                    elif "Golden" in strategy: matched = df.iloc[-2]["struct_wave"] < df.iloc[-2]["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
                     elif "Akumulasi" in strategy: matched = latest["vol_wave"] > 20
-                elif mode == "Candlestick Pattern":
-                    matched = (current_pattern == strategy)
-                else: # Inflow
-                    if "High" in strategy: matched = latest["inflow_ratio"] >= 1.5
-                    elif "Bandar" in strategy: matched = latest["inflow_ratio"] > 1.2 and latest["vol_wave"] > 0
+                    trigger = strategy
+                
+                elif mode == "Candlestick Pattern 🕯️":
+                    current_pat = detect_patterns(df)
+                    if current_pat == strategy:
+                        matched = True
+                        trigger = current_pat
                 
                 if matched:
                     return {
                         "Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2),
-                        "Bandar": round(latest["vol_wave"],1), "Struct": round(latest["struct_wave"],1),
-                        "Inflow": round(latest["inflow_ratio"],2), "Score": int(latest["bull_score"]),
-                        "Pattern": current_pattern
+                        "Signal": trigger, "Score": int(latest["bull_score"]),
+                        "Bandar": round(latest["vol_wave"],1), "Trend": "Bullish" if latest["Close"] > latest["ema200"] else "Bearish"
                     }
                 return None
 
@@ -228,32 +221,35 @@ def main():
             st.rerun()
 
         if st.session_state["results"]:
+            st.success(f"Ditemukan {len(st.session_state['results'])} saham potensial.")
             st.dataframe(pd.DataFrame(st.session_state["results"]), use_container_width=True, hide_index=True)
+        else:
+            st.info("Belum ada data. Silakan tekan RUN SCAN.")
 
-    with tab2:
+    with tab_deep:
         if st.session_state["results"]:
-            selected = st.selectbox("Pilih Aset:", [r["Asset"] for r in st.session_state["results"]])
-            df_p = add_metrics(compute_matrix_waves(fetch_data(selected + suffix, timeframe)))
+            selected = st.selectbox("Analisis Mendalam:", [r["Asset"] for r in st.session_state["results"]])
+            df_p = compute_technicals(fetch_data(selected + suffix, timeframe))
             if df_p is not None:
-                st.plotly_chart(build_chart(df_p), use_container_width=True)
-                if st.button("🪄 Get AI Analysis"):
+                # Chart
+                fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.25, 0.25])
+                fig.add_trace(go.Candlestick(x=df_p.index, open=df_p["Open"], high=df_p["High"], low=df_p["Low"], close=df_p["Close"], name="Price"), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["ema200"], name="EMA 200", line=dict(color="white", width=2)), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["vol_wave"], name="Bandar", line=dict(color="yellow")), row=2, col=1)
+                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["struct_wave"], name="Struktur", line=dict(color="cyan")), row=2, col=1)
+                fig.add_trace(go.Bar(x=df_p.index, y=df_p["Volume"], name="Volume"), row=3, col=1)
+                fig.update_layout(template="plotly_dark", height=850, xaxis_rangeslider_visible=False)
+                st.plotly_chart(fig, use_container_width=True)
+                
+                if st.button("🪄 Sniper AI Insight"):
                     client = get_client()
                     if client:
-                        latest = df_p.iloc[-1]
-                        prompt = f"Analisis teknikal {selected}. Harga: {latest['Close']}, Bull Score: {latest['bull_score']}, Inflow: {latest['inflow_ratio']}x. Berikan strategi Entry dan Exit yang tajam."
+                        prompt = f"Analisis saham {selected} dengan harga {df_p.iloc[-1]['Close']}. Berikan titik Entry, SL, dan TP berdasarkan sinyal Sniper Entry."
                         resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
                         st.markdown(resp.choices[0].message.content)
-                    else: st.error("Pasang GROQ_KEY dulu di Secrets!")
-        else: st.info("Scan market dulu bos!")
-
-def build_chart(df):
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.25, 0.25])
-    fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="Bandar", line=dict(color="#FFD600")), row=2, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="Struktur", line=dict(color="#FFFFFF")), row=2, col=1)
-    fig.add_trace(go.Bar(x=df.index, y=df["inflow_ratio"], name="Inflow"), row=3, col=1)
-    fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
-    return fig
+                    else: st.error("API Key Groq dibutuhkan!")
+        else:
+            st.warning("Scan market dulu.")
 
 if __name__ == "__main__":
     main()
