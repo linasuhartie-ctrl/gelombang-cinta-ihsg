@@ -2,10 +2,10 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import streamlit as st
-import yfinance as yf
 import pandas as pd
 import numpy as np
 import ta
+import yfinance as yf
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor
@@ -22,12 +22,13 @@ IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO 
 CRYPTO_MEGA = """BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA LDO VET BEAM SEI AAVE MKR RUNE GALA EGLD ALGO FLOW DYDX CRV SNX PENDLE JUP PYTH STRK W ENA ROSE AGIX STG AXS SAND MANA CHZ MINA KAVA GRT AGLD JASMY TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH KP3R SNT MULTI VANRY"""
 
 def init_state():
-    if "results" not in st.session_state:
-        st.session_state.results = []
-    if "selected_asset" not in st.session_state:
-        st.session_state.selected_asset = None
-    if "last_scan_params" not in st.session_state:
-        st.session_state.last_scan_params = {}
+    for k, v in {
+        "results": [],
+        "selected_asset": None,
+        "last_scan_params": {}
+    }.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
 init_state()
 
@@ -76,7 +77,6 @@ def pandas_wma(series, window):
 def compute_matrix_waves(df):
     if df is None or len(df) < 50:
         return None
-
     df = df.copy().dropna()
 
     macd = ta.trend.MACD(df["Close"])
@@ -84,6 +84,11 @@ def compute_matrix_waves(df):
 
     stoch = ta.momentum.StochasticOscillator(df["High"], df["Low"], df["Close"], window=14, smooth_window=3)
     df["stoch_k"] = stoch.stoch()
+
+    df["rsi"] = ta.momentum.RSIIndicator(df["Close"], window=14).rsi()
+    df["ma20"] = df["Close"].rolling(20).mean()
+    df["ema20"] = df["Close"].ewm(span=20, adjust=False).mean()
+    df["ema50"] = df["Close"].ewm(span=50, adjust=False).mean()
 
     hl_range = (df["High"] - df["Low"]).replace(0, 0.001)
     mf_mult = ((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl_range
@@ -102,7 +107,6 @@ def compute_matrix_waves(df):
     hh = df["High"].rolling(20).max()
     ll = df["Low"].rolling(20).min()
     df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
-
     return df.dropna()
 
 def add_inflow_metrics(df):
@@ -119,40 +123,34 @@ def add_inflow_metrics(df):
 def detect_patterns(df):
     if df is None or len(df) < 5:
         return "Neutral"
-
     c1, c2, c3, c4, c5 = [df.iloc[-i] for i in range(5, 0, -1)]
 
     if (c4["Close"] < c4["Open"]) and (c5["Close"] > c5["Open"]) and (c5["Open"] <= c4["Close"]) and (c5["Close"] >= c4["Open"]):
         return "Bullish Engulfing"
-
     if (c3["Close"] < c3["Open"]) and (abs(c4["Close"] - c4["Open"]) < abs(c3["Close"] - c3["Open"]) * 0.3) and (c5["Close"] > c5["Open"]):
         return "Morning Star"
-
     if (c5["Close"] > c5["Open"]) and ((c5["Close"] - c5["Open"]) / max(c5["High"] - c5["Low"], 0.001) > 0.5):
         return "Hammer"
-
     if c3["Close"] < c3["Open"] and c4["Close"] > c4["Open"] and c5["Close"] > c5["Open"] and c5["Close"] > c4["Close"]:
         return "Three White Soldiers"
-
     if c4["Close"] < c4["Open"] and c5["Close"] > c5["Open"] and c5["Open"] < c4["Close"] and c5["Close"] > (c4["Open"] + c4["Close"]) / 2:
         return "Piercing Line"
-
     return "Neutral"
 
-def detect_bullish_probability(df):
+def detect_bullish_score(df):
     if df is None or len(df) < 30:
         return 0
     latest = df.iloc[-1]
     prev = df.iloc[-2]
     score = 0
     if latest["Close"] > latest["Open"]:
-        score += 15
+        score += 10
     if latest["Close"] > prev["Close"]:
-        score += 15
+        score += 10
     if latest["vol_wave"] > 0:
         score += 10
     if latest["trend_wave"] > 0:
-        score += 15
+        score += 10
     if latest["dom_wave"] > 0:
         score += 10
     if latest["struct_wave"] > -20:
@@ -161,40 +159,77 @@ def detect_bullish_probability(df):
         score += 15
     if latest["macd_hist"] > 0:
         score += 10
+    if latest["rsi"] > 50:
+        score += 10
+    if latest["Close"] > latest["ema20"]:
+        score += 5
     return min(score, 100)
 
+def bullish_level(score):
+    if score < 20:
+        return "SKIP"
+    if score < 40:
+        return "WEAK"
+    if score < 60:
+        return "WATCHLIST"
+    if score < 80:
+        return "YAHUD"
+    return "SUPER YAHUD"
+
 def get_ai_insight(client_obj, asset, df):
-    lookback = df.tail(20)
-    movement_summary = "\n".join(
-        [f"- Close {row['Close']:.2f} | Kuning {row['vol_wave']:.1f} | Biru {row['trend_wave']:.1f}" for _, row in lookback.iterrows()]
-    )
+    lookback = df.tail(20).copy()
+    rows = []
+    for i, (_, row) in enumerate(lookback.iterrows(), start=1):
+        rows.append(
+            f"Candle {i}: Close={row['Close']:.2f}, Open={row['Open']:.2f}, High={row['High']:.2f}, Low={row['Low']:.2f}, "
+            f"VolWave={row['vol_wave']:.1f}, TrendWave={row['trend_wave']:.1f}, DomWave={row['dom_wave']:.1f}, "
+            f"StructWave={row['struct_wave']:.1f}, RSI={row['rsi']:.1f}, MACDHist={row['macd_hist']:.4f}, "
+            f"StochK={row['stoch_k']:.1f}, MA20={row['ma20']:.2f}, EMA20={row['ema20']:.2f}, EMA50={row['ema50']:.2f}, "
+            f"InflowRatio={row['inflow_ratio']:.2f}, BullScore={row['bull_score']}"
+        )
+
     prompt = f"""
-Analisis naratif untuk {asset}.
+Kamu adalah analis teknikal senior.
 
-20 candle terakhir:
-{movement_summary}
+Analisis aset {asset} secara menyeluruh, berurutan dari candle 20 sampai candle 1.
 
-Kondisi akhir:
-- Dominasi (Ungu): {lookback.iloc[-1]['dom_wave']:.1f}
-- Struktur (Putih): {lookback.iloc[-1]['struct_wave']:.1f}
-- MACD Hist: {lookback.iloc[-1]['macd_hist']:.4f}
-- Stoch K: {lookback.iloc[-1]['stoch_k']:.1f}
-- Inflow Ratio: {lookback.iloc[-1]['inflow_ratio']:.2f}
+DATA 20 CANDLE:
+{chr(10).join(rows)}
 
-Tugas:
-1. Bedah perjalanan candle dari awal sampai akhir.
-2. Jelaskan momentum, trend, struktur, dan inflow.
-3. Beri entry, TP1, TP2, SL dalam angka.
-4. Simpulkan: SUPER YAHUD / YAHUD / SKIP.
+TUGAS WAJIB:
+1. Bedah perjalanan candle satu per satu dari candle 20 ke candle 1.
+2. Evaluasi 4 predictive wave: vol_wave, trend_wave, dom_wave, struct_wave.
+3. Evaluasi candlestick pattern yang muncul.
+4. Evaluasi RSI, MACD, Stochastic, MA20, EMA20, EMA50.
+5. Evaluasi inflow ratio dan arti demand yang masuk.
+6. Jelaskan faktor yang mendukung bullish dan faktor yang melemahkan bullish.
+7. Jelaskan posisi Elliott Wave secara estimasi bila bisa.
+8. Beri level akhir secara tegas:
+   - SKIP
+   - WEAK
+   - WATCHLIST
+   - YAHUD
+   - SUPER YAHUD
+
+FORMAT OUTPUT:
+- Ringkasan alur candle
+- Faktor baik
+- Faktor kurang baik
+- Estimasi Elliott Wave
+- Level akhir
+- Entry, TP1, TP2, SL jika layak
+- Kesimpulan singkat
+
+Gaya jawaban harus runtut, tajam, dan berbasis data.
 """
     try:
         resp = client_obj.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "Anda analis teknikal senior. Jawab tegas, ringkas, dan berbasis data."},
+                {"role": "system", "content": "Anda analis teknikal senior. Jawab tegas, runtut, dan berbasis data."},
                 {"role": "user", "content": prompt},
             ],
-            temperature=0.5,
+            temperature=0.4,
         )
         return resp.choices[0].message.content
     except Exception as e:
@@ -202,34 +237,17 @@ Tugas:
 
 def build_chart(df):
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.25, 0.25])
-
-    fig.add_trace(go.Candlestick(
-        x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Price"
-    ), row=1, col=1)
-
-    for col, color, name in [
-        ("vol_wave", "#FFD600", "Bandar"),
-        ("trend_wave", "#00BFFF", "Trend"),
-        ("dom_wave", "#D500F9", "Dominasi"),
-        ("struct_wave", "#FFFFFF", "Struktur"),
-    ]:
+    fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"], low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
+    for col, color, name in [("vol_wave", "#FFD600", "Bandar"), ("trend_wave", "#00BFFF", "Trend"), ("dom_wave", "#D500F9", "Dominasi"), ("struct_wave", "#FFFFFF", "Struktur")]:
         fig.add_trace(go.Scatter(x=df.index, y=df[col], name=name, line=dict(color=color, width=1.6)), row=2, col=1)
-
     fig.add_trace(go.Bar(x=df.index, y=df["inflow_ratio"], name="Inflow Ratio", marker_color="#4ADE80"), row=3, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df["value_ma20_m"], name="Value MA20", mode="lines+markers", line=dict(color="#FDE047", width=2.5)), row=3, col=1)
-
-    fig.update_layout(
-        template="plotly_dark",
-        height=900,
-        xaxis_rangeslider_visible=False,
-        legend=dict(orientation="h"),
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
+    fig.update_layout(template="plotly_dark", height=900, xaxis_rangeslider_visible=False, legend=dict(orientation="h"), margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
 def main():
     st.title("🔮 Aulsome Matrix Pro")
-    st.caption("Market scanner dengan wave matrix, inflow detector, candlestick probability, dan AI insight.")
+    st.caption("Market scanner dengan wave matrix, inflow detector, candlestick score, dan AI insight.")
 
     if client is None:
         st.sidebar.warning("GROQ_KEY belum tersedia. AI insight akan nonaktif.")
@@ -238,7 +256,7 @@ def main():
         st.header("Control Panel")
         market = st.radio("Universe", ["IHSG", "Crypto"], horizontal=True)
         timeframe = st.selectbox("Timeframe", ["15m", "1h", "4h", "1d"], index=3)
-        mode = st.selectbox("Mode Analysis", ["Wave Matrix", "Candlestick Pattern"])
+        mode = st.selectbox("Mode Analysis", ["Wave Matrix", "Candlestick Pattern", "Inflow Detector"])
 
         strategy = None
         struct_range = None
@@ -247,22 +265,21 @@ def main():
             strategy = st.selectbox("Wave Signal", ["Level Garis Putih", "Golden Cross", "Death Cross"])
             if strategy == "Level Garis Putih":
                 struct_range = st.slider("Range Putih", -100, 100, (-100, -50))
-        else:
+        elif mode == "Candlestick Pattern":
             strategy = st.selectbox("Candlestick Pattern", ["Bullish Engulfing", "Morning Star", "Hammer", "Piercing Line", "Three White Soldiers"])
+        else:
+            strategy = st.selectbox("Inflow Signal", ["High Inflow", "Strong Value", "Inflow + Bullish"])
 
         min_turnover = st.number_input("Min Turnover (Mln)", min_value=0.1, max_value=5000.0, value=10.0, step=0.5)
         min_inflow = st.slider("Min Inflow Ratio", 0.5, 10.0, 1.2, 0.1)
-        min_bull_prob = st.slider("Min Bullish Probability", 0, 100, 65, 1)
+        min_bull_score = st.slider("Min Bullish Score", 0, 100, 65, 1)
         run_scan = st.button("🚀 RUN SCAN", use_container_width=True)
 
     suffix = ".JK" if market == "IHSG" else "-USD"
     universe_text = IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA
     tickers = parse_universe(universe_text, suffix)
 
-    if market == "Crypto":
-        st.sidebar.metric("Jumlah Coin Crypto", len(tickers))
-    else:
-        st.sidebar.metric("Jumlah Saham IHSG", len(tickers))
+    st.sidebar.metric("Jumlah Coin/Saham", len(tickers))
 
     tab_scan, tab_ai, tab_about = st.tabs(["📊 Scan Market", "🧠 Deep Journey", "ℹ️ About"])
 
@@ -275,21 +292,20 @@ def main():
                 df = fetch_data(ticker, timeframe)
                 df = compute_matrix_waves(df)
                 df = add_inflow_metrics(df)
-
                 if df is None or len(df) < 30:
                     return None
 
                 latest = df.iloc[-1]
                 prev = df.iloc[-2]
+                bull_score = detect_bullish_score(df)
+                level = bullish_level(bull_score)
 
                 turnover = (latest["Close"] * latest["Volume"]) / 1e6 if market == "Crypto" else latest["Volume"] / 1e6
                 if turnover < min_turnover:
                     return None
                 if latest["inflow_ratio"] < min_inflow:
                     return None
-
-                bull_prob = detect_bullish_probability(df)
-                if bull_prob < min_bull_prob:
+                if bull_score < min_bull_score:
                     return None
 
                 pattern = detect_patterns(df)
@@ -302,8 +318,15 @@ def main():
                         matched = prev["struct_wave"] <= prev["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
                     elif strategy == "Death Cross":
                         matched = prev["struct_wave"] >= prev["dom_wave"] and latest["struct_wave"] < latest["dom_wave"]
-                else:
+                elif mode == "Candlestick Pattern":
                     matched = pattern == strategy
+                else:
+                    if strategy == "High Inflow":
+                        matched = latest["inflow_ratio"] >= 1.5
+                    elif strategy == "Strong Value":
+                        matched = latest["value_now_m"] >= 1000
+                    elif strategy == "Inflow + Bullish":
+                        matched = latest["inflow_ratio"] >= 1.2 and bull_score >= min_bull_score
 
                 if not matched:
                     return None
@@ -315,21 +338,19 @@ def main():
                     "Trend🔵": round(float(latest["trend_wave"]), 1),
                     "Inflow": round(float(latest["inflow_ratio"]), 2),
                     "Value(M)": round(float(latest["value_now_m"]), 1),
-                    "Bull%": int(bull_prob),
+                    "BullScore": int(bull_score),
+                    "Level": level,
                     "Pattern": pattern,
                     "Quality": "🔥 SUPER" if latest["struct_wave"] < -80 else "✅ YAHUD",
                 }
 
-            for i, ticker in enumerate(tickers, start=1):
-                try:
-                    row = process(ticker)
+            with ThreadPoolExecutor(max_workers=20) as exe:
+                for i, row in enumerate(exe.map(process, tickers), start=1):
                     if row:
                         results.append(row)
-                except Exception:
-                    pass
-                progress.progress(i / len(tickers))
+                    progress.progress(i / len(tickers))
 
-            results = sorted(results, key=lambda x: (x["Bull%"], x["Inflow"]), reverse=True)
+            results = sorted(results, key=lambda x: (x["BullScore"], x["Inflow"]), reverse=True)
             st.session_state.results = results
             st.session_state.last_scan_params = {
                 "market": market,
@@ -338,7 +359,7 @@ def main():
                 "strategy": strategy,
                 "min_turnover": min_turnover,
                 "min_inflow": min_inflow,
-                "min_bull_prob": min_bull_prob,
+                "min_bull_score": min_bull_score,
             }
 
         if st.session_state.results:
@@ -355,13 +376,14 @@ def main():
             df_p = add_inflow_metrics(df_p)
 
             if df_p is not None and len(df_p) > 30:
+                df_p["bull_score"] = detect_bullish_score(df_p)
                 st.plotly_chart(build_chart(df_p), use_container_width=True)
 
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("Close", f"{df_p.iloc[-1]['Close']:.2f}")
-                c2.metric("Bandar", f"{df_p.iloc[-1]['vol_wave']:.1f}")
-                c3.metric("Inflow", f"{df_p.iloc[-1]['inflow_ratio']:.2f}")
-                c4.metric("Bull%", f"{detect_bullish_probability(df_p)}%")
+                c2.metric("Inflow", f"{df_p.iloc[-1]['inflow_ratio']:.2f}")
+                c3.metric("BullScore", f"{df_p.iloc[-1]['bull_score']}")
+                c4.metric("Level", bullish_level(int(df_p.iloc[-1]["bull_score"])))
 
                 if st.button("🪄 Start Deep Journey Insight", use_container_width=True):
                     if client is None:
@@ -374,7 +396,7 @@ def main():
 
     with tab_about:
         st.subheader("Tentang Aulsome Matrix Pro")
-        st.write("App ini menggabungkan wave matrix, inflow detector, candlestick probability, dan AI narrative analysis.")
+        st.write("App ini menggabungkan wave matrix, candlestick score, inflow detector, dan AI narrative analysis.")
 
 if __name__ == "__main__":
     main()
