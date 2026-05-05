@@ -14,15 +14,15 @@ import time
 
 # --- CONFIG ---
 st.set_page_config(
-    page_title="Aulsome Matrix Pro V5.1",
+    page_title="Aulsome Matrix Pro V5.3",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# --- UNIVERSE (FIXED NAME ERROR) ---
-IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO AHAP AISA AKPI AKRA ALDO ALKA ALMI AMAG AMAN AMAR AMFG AMIN AMMN AMRT ANJT ANTM APEX APLN ARCI ARGO ARII ARNA ARTA ARTI ARTO ASBI ASGR ASII ASRI ASRM ASSA ATIC AUTO AVIA BABP BACA BAJA BALI BANK BAPA BATA BBCA BBHI BBKP BBLD BBMD BBNI BBRI BBRM BBTN BBYB BCAP BCIC BDMN BEKS BELL BESS BEST BFIN BGTG BINA BIPI BIPP BIRD BISI BJBR BJTM BKDP BKSL BLTA BMAS BMHS BMRI BMSR BMTR BNBA BNBR BNGA BNII BNLI BOBA BOLA BPFI BRIS BREN BRMS BRNA BRPT BSDE BSIM BSSR BSWD BTEK BTEL BTON BTPN BTPS BUDI BUKK BULL BUMI BVIC BWPT BYAN CAKK CAMP CARS CASH CASS CCSI CEKA CENT CFIN CINT CITA CITY CLEO CMNP CMPP CNKO CNTX COAL CPIN CPRO CSAP CSRA CTBN CTRA DART DAYA DCII DEAL DEWA DFAM DGIK DILD DIVA DKFT DLTA DMMX DMND DNAR DNET DOID DPNS DSFI DSNG DSSA DUTI DYAN EAST EKAD ELSA EMDE EMTK ENRG EPMT ERAA ESSA ESTI ETWA EXCL FAST FASW FILM FIRE FISH FMII FOOD FORU FORZ FPNI FREN GAMA GDST GDYR GEMA GEMS GGRM GIAA GJTL GLOB GLVA GMFI GMTD GOLD GOOD GOTO GPRA GSMF GTBO GWSA GZCO HADE HAIS HDFA HEAL HERO HEXA HITS HKMU HMSP HOKI HOME HRME HRTA HRUM IATA IBST ICBP ICON IDEA IGAR IIKP IKAI IMAS IMJS IMPC INAF INAI INCF INCI INCO INDF INDO INDR INDS INDY INPC INPS INRU INTA INTP IPCC IPCM IPOL IPTV IRRA ISAT ISSP ITIC ITMG JAKS JAST JAWA JAYA JECC JGLE JIHD JKON JMAS JSPT JTPE KAEF KBLI KBLM KBLV KDSI KEEN KEJU KIAS KICI KIJA KINO KIOS KKGI KLBF KOBX KOIN KONI KPIG KRYA LAMI LCGP LEAD LINK LION LMAS LMPI LMSH LPCK LPGI LPIN LPKR LPLI LPPF LSIP LTLS MAIN MAMI MAPA MAPB MAPI MARK MASA MAYA MBAP MBSS MBTO MCAS MCOR MDIA MDKA MDLN MDRN MEDC MEGA MERK META MFIN MICE MIDI MIKA MINA MIRA MITI MKPI MLBI MLIA MLPL MLPT MMLP MNCN MOLI MORA MPMX MPPA MSIN MSKY MTDL MTEL MTLA MTMH MTPS MTRA MTSM MYOH MYOR MYRX MYTX NANO NELY NFCX NIPS NIRO NISP NOBU NRCA NZIA OASA OBMD OMED OMRE ONIX PADI PALM PAMG PANI PANR PANS PBSA PCAR PEGE PEHA PGAS PGEO PGLI PICO PJAA PKPK PLAS PLIN PNBN PNBS PNIN PNLF PNSE POLA POLI POLL POLY POOL PORT PRAS PRDA PSAB PSDN PSGO PSKT PTBA PTPP PTPW PUDA PURA PWON PYFA PZZA RAJA RALS RANC RBMS RDTX REAL RELI RICY RIGS RIMO RMBA ROCK ROTI RSGK RUIS SAFE SAME SAMF SAPX SCCO SCMA SCNP SDMU SDPC SFAN SGER SGRO SHID SIDO SILO SIMA SIMP SINI SIPD SKBM SKLT SKYB SMAR SMBR SMCB SMDR SMGR SMIL SMKL SMMA SMMT SMRA SMRU SMSM SOBI SOHO SONA SOSS SOTO SPMA SQMI SRAJ SRIL SRSN SRTG SSIA SSMS SSTM STTP SUGI SULI SUPR SURE SWAT TAXI TAYS TBIG TBLA TBMS TCID TCPI TEBE TECH TELE TFCO TGKA TIFA TINS TIRA TIRT TKIM TLDN TLKM TMAS TMPO TNCA TOBA TOYS TPIA TPMA TRAM TRIL TRIM TRIN TRIS TRJA TRST TRUK TSPC TUGU TURI ULTJ UNIC UNIT UNSP UNTR UNVR URBN VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX"""
-CRYPTO_MEGA = """BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA LDO VET BEAM SEI AAVE MKR RUNE GALA EGLD ALGO FLOW DYDX CRV SNX PENDLE JUP PYTH STRK W ENA ROSE AGIX STG AXS SAND MANA CHZ MINA KAVA GRT AGLD JASMY TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH KP3R SNT MULTI VANRY"""
+# --- UNIVERSE ---
+IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO AHAP AISA AKPI AKRA ALDO ALKA ALMI AMAG AMAN AMAR AMFG AMIN AMMN AMRT ANJT ANTM APEX APLN ARCI ARGO ARII ARNA ARTA ARTI ARTO ASBI ASGR ASII ASRI ASRM ASSA ATIC AUTO AVIA BABP BACA BAJA BALI BANK BAPA BATA BBCA BBHI BBKP BBLD BBMD BBNI BBRI BBRM BBTN BBYB BCAP BCIC BDMN BEKS BELL BESS BEST BFIN BGTG BINA BIPI BIPP BIRD BISI BJBR BJTM BKDP BKSL BLTA BMAS BMHS BMRI BMSR BMTR BNBA BNBR BNGA BNII BNLI BOBA BOLA BPFI BRIS BREN BRMS BRNA BRPT BSDE BSIM BSSR BSWD BTEK BTEL BTON BTPN BTPS BUDI BUKK BULL BUMI BVIC BWPT BYAN CAKK CAMP CARS CASH CASS CCSI CEKA CENT CFIN CINT CITA CITY CLEO CMNP CMPP CNKO CNTX COAL CPIN CPRO CSAP CSRA CTBN CTRA DART DAYA DCII DEAL DEWA DFAM DGIK DILD DIVA DKFT DLTA DMMX DMND DNAR DNET DOID DPNS DSFI DSNG DSSA DUTI DYAN EAST EKAD ELSA EMDE EMTK ENRG EPMT ERAA ESSA ETWA EXCL FAST FASW FILM FIRE FISH FMII FOOD FORU FORZ FPNI FREN GAMA GDST GDYR GEMA GEMS GGRM GIAA GJTL GLOB GLVA GMFI GMTD GOLD GOOD GOTO GPRA GSMF GTBO GWSA GZCO HADE HAIS HDFA HEAL HERO HEXA HITS HKMU HMSP HOKI HOME HRME HRTA HRUM IATA IBST ICBP ICON IDEA IGAR IIKP IKAI IMAS IMJS IMPC INAF INAI INCF INCI INCO INDF INDO INDR INDS INDY INPC INPS INRU INTA INTP IPCC IPCM IPOL IPTV IRRA ISAT ISSP ITIC ITMG JAKS JAST JAWA JAYA JECC JGLE JIHD JKON JMAS JSPT JTPE KAEF KBLI KBLM KBLV KDSI KEEN KEJU KIAS KICI KIJA KINO KIOS KKGI KLBF KOBX KOIN KONI KPIG KRYA LAMI LCGP LEAD LINK LION LMAS LMPI LMSH LPCK LPGI LPIN LPKR LPLI LPPF LSIP LTLS MAIN MAMI MAPA MAPB MAPI MARK MASA MAYA MBAP MBSS MBTO MCAS MCOR MDIA MDKA MDLN MDRN MEDC MEGA MERK META MFIN MICE MIDI MIKA MINA MIRA MITI MKPI MLBI MLIA MLPL MLPT MMLP MNCN MOLI MORA MPMX MPPA MSIN MSKY MTDL MTEL MTLA MTMH MTPS MTRA MTSM MYOH MYOR MYRX MYTX NANO NELY NFCX NIPS NIRO NISP NOBU NRCA NZIA OASA OBMD OMED OMRE ONIX PADI PALM PAMG PANI PANR PANS PBSA PCAR PEGE PEHA PGAS PGEO PGLI PICO PJAA PKPK PLAS PLIN PNBN PNBS PNIN PNLF PNSE POLA POLI POLL POLY POOL PORT PRAS PRDA PSAB PSDN PSGO PSKT PTBA PTPP PTPW PUDA PURA PWON PYFA PZZA RAJA RALS RANC RBMS RDTX REAL RELI RICY RIGS RIMO RMBA ROCK ROTI RSGK RUIS SAFE SAME SAMF SAPX SCCO SCMA SCNP SDMU SDPC SFAN SGER SGRO SHID SIDO SILO SIMA SIMP SINI SIPD SKBM SKLT SKYB SMAR SMBR SMCB SMDR SMGR SMIL SMKL SMMA SMMT SMRA SMRU SMSM SOBI SOHO SONA SOSS SOTO SPMA SQMI SRAJ SRIL SRSN SRTG SSIA SSMS SSTM STTP SUGI SULI SUPR SURE SWAT TAXI TAYS TBIG TBLA TBMS TCID TCPI TEBE TECH TELE TFCO TGKA TIFA TINS TIRA TIRT TKIM TLDN TLKM TMAS TMPO TNCA TOBA TOYS TPIA TPMA TRAM TRIL TRIM TRIN TRIS TRJA TRST TRUK TSPC TUGU TURI ULTJ UNIC UNIT UNSP UNTR UNVR URBN VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX"""
+CRYPTO_MEGA = """BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA LDO VET BEAM SEI AAVE MKR RUNE GALA EGLD ALGO FLOW DYDX CRV SNX PENDLE JUP PYTH STRK W ENA ROSE AGIX STG AXS SAND MANA CHZ MINA KAVA GRT AGLD JASMY TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH"""
 
 # --- HELPERS ---
 def init_state():
@@ -50,10 +50,11 @@ def fetch_data(ticker, timeframe):
     except: return None
 
 def compute_technicals(df):
-    if df is None or len(df) < 60: return None
+    if df is None or len(df) < 200: 
+        # Jika data kurang dari 200, ambil lebih banyak
+        return None
     df = df.copy()
     
-    # EMAs & Indicators
     df["ma20"] = ta.trend.sma_indicator(df["Close"], window=20)
     df["ema20"] = ta.trend.ema_indicator(df["Close"], window=20)
     df["ema50"] = ta.trend.ema_indicator(df["Close"], window=50)
@@ -64,7 +65,6 @@ def compute_technicals(df):
     df["stoch_k"] = ta.momentum.StochasticOscillator(df["High"], df["Low"], df["Close"]).stoch()
     df["vol_sma20"] = df["Volume"].rolling(20).mean()
     
-    # Matrix Waves
     hl = (df["High"] - df["Low"]).replace(0, 0.001)
     mf_vol = (((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl) * df["Volume"]
     df["vol_wave"] = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 0.001) * 100).ewm(span=5).mean()
@@ -74,12 +74,10 @@ def compute_technicals(df):
     hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
     df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
     
-    # Inflow DNA
     df["value_now_m"] = (df["Close"] * df["Volume"]) / 1e6
     df["value_ma20"] = df["value_now_m"].rolling(20).mean()
     df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 0.001)
     
-    # Bull Score
     scores = []
     for i in range(len(df)):
         if i < 30: scores.append(0); continue
@@ -88,132 +86,155 @@ def compute_technicals(df):
         if r["Close"] > r["Open"]: s += 10
         if r["vol_wave"] > 0: s += 15
         if r["trend_wave"] > 0: s += 15
-        if r["inflow_ratio"] > 1.2: s += 20
+        if r["inflow_ratio"] > 1.1: s += 20
         if r["struct_wave"] > -50: s += 30
         if r["rsi"] > 50: s += 10
         scores.append(min(s, 100))
     df["bull_score"] = scores
     return df.dropna()
 
-# --- PATTERN ENGINE (BASED ON IMAGE) ---
-def detect_patterns(df):
+# --- PATTERN ENGINE (WITH TOGGLE VALIDATION) ---
+def detect_patterns(df, use_trend, use_vol, use_inflow):
     if df is None or len(df) < 10: return "Neutral"
+    
     c, p, p2, p3, p4 = df.iloc[-1], df.iloc[-2], df.iloc[-3], df.iloc[-4], df.iloc[-5]
     
-    # Smart Money Filters: Trend & Volume Validation
-    uptrend = c["Close"] > c["ema200"]
-    vol_valid = c["Volume"] > c["vol_sma20"]
-    inflow_valid = c["inflow_ratio"] > 1.0
+    # Validasi Berdasarkan Toggle Sidebar
+    uptrend = (c["Close"] > c["ema200"]) if use_trend else True
+    vol_valid = (c["Volume"] > c["vol_sma20"]) if use_vol else True
+    inflow_valid = (c["inflow_ratio"] > 1.0) if use_inflow else True
     
-    # Hanya deteksi pola jika didukung Trend & Inflow (Institutional Alignment)
     if not (uptrend and inflow_valid and vol_valid): return "Neutral"
 
-    def body(n): return abs(n["Close"] - n["Open"])
+    def b(n): return abs(n["Close"] - n["Open"])
     def is_bull(n): return n["Close"] > n["Open"]
     def is_bear(n): return n["Open"] > n["Close"]
     def tr(n): return n["High"] - n["Low"]
 
-    # Hammer
-    if (min(c["Open"], c["Close"]) - c["Low"]) > 2 * body(c) and (c["High"] - max(c["Open"], c["Close"])) < 0.2 * body(c): return "Hammer"
-    # Bullish Engulfing
+    # 1. Hammer
+    if (min(c["Open"], c["Close"]) - c["Low"]) > 1.5 * b(c) and (c["High"] - max(c["Open"], c["Close"])) < 0.3 * b(c): return "Hammer"
+    # 2. Bullish Engulfing
     if is_bear(p) and is_bull(c) and c["Open"] <= p["Close"] and c["Close"] >= p["Open"]: return "Bullish Engulfing"
-    # Three White Soldiers
+    # 3. Inverted Hammer
+    if (c["High"] - max(c["Open"], c["Close"])) > 1.5 * b(c) and (min(c["Open"], c["Close"]) - c["Low"]) < 0.3 * b(c): return "Inverted Hammer"
+    # 4. Bullish Harami
+    if is_bear(p) and is_bull(c) and c["Open"] > p["Close"] and c["Close"] < p["Open"]: return "Bullish Harami"
+    # 5. Dragonfly Doji
+    if b(c) < (tr(c) * 0.1) and (c["High"] - max(c["Open"], c["Close"])) < (tr(c) * 0.1): return "Dragonfly Doji"
+    # 6. Piercing Pattern
+    if is_bear(p) and is_bull(c) and c["Open"] < p["Low"] and c["Close"] > (p["Open"] + p["Close"])/2: return "Piercing Pattern"
+    # 7. Bullish Marubozu
+    if is_bull(c) and b(c) > tr(c) * 0.9: return "Bullish Marubozu"
+    # 8. Tweezer Bottom
+    if abs(c["Low"] - p["Low"]) < (c["Low"] * 0.002) and is_bear(p) and is_bull(c): return "Tweezer Bottom"
+    # 9. Bullish Spinning Top
+    if b(c) < tr(c) * 0.3 and (c["High"]-max(c["Open"],c["Close"])) > b(c) and (min(c["Open"],c["Close"])-c["Low"]) > b(c): return "Bullish Spinning Top"
+    # 10. Rising Three Method
+    if is_bull(p4) and all(is_bear(x) for x in [p3, p2, p]) and is_bull(c) and c["Close"] > p4["High"]: return "Rising Three Method"
+    # 11. Long Legged Doji
+    if b(c) < tr(c)*0.1 and (c["High"]-c["Close"]) > tr(c)*0.3: return "Bullish Long Legged Doji"
+    # 12. Three White Soldiers
     if all(is_bull(x) for x in [p2, p, c]) and c["Close"] > p["Close"] > p2["Close"]: return "Three White Soldiers"
-    # Morning Star
-    if is_bear(p2) and body(p) < body(p2) * 0.3 and is_bull(c) and c["Close"] > (p2["Open"] + p2["Close"])/2: return "Morning Star"
-    # Tweezer Bottom
-    if abs(c["Low"] - p["Low"]) < (c["Low"] * 0.001) and is_bear(p) and is_bull(c): return "Tweezer Bottom"
-    
+    # 13. Three Inside Up
+    if is_bear(p2) and is_bull(p) and p["Close"] < p2["Open"] and is_bull(c) and c["Close"] > p2["Open"]: return "Three Inside Up"
+    # 14. Morning Star
+    if is_bear(p2) and b(p) < b(p2)*0.3 and is_bull(c) and c["Close"] > (p2["Open"]+p2["Close"])/2: return "Morning Star"
+    # 15. Three Outside Up
+    if is_bear(p2) and is_bull(p) and p["Close"] > p2["Open"] and is_bull(c) and c["Close"] > p["Close"]: return "Three Outside Up"
+
     return "Neutral"
 
-# --- AI PROMPT BUILDER (ORDER FLOW VERSION) ---
+# --- AI PROMPT ---
 def build_ai_prompt(asset, df):
     lookback = df.tail(30).copy()
-    cols = ['Open', 'High', 'Low', 'Close', 'vol_wave', 'trend_wave', 'dom_wave', 
-            'struct_wave', 'rsi', 'macd_hist', 'stoch_k', 'ma20', 'ema20', 'ema50', 
-            'inflow_ratio', 'bull_score']
+    cols = ['Open', 'High', 'Low', 'Close', 'vol_wave', 'trend_wave', 'dom_wave', 'struct_wave', 'inflow_ratio', 'bull_score']
     data_str = lookback[cols].to_string()
-
     return f"""
-Anda adalah Senior Technical Analyst dengan spesialisasi dalam *Market Structure* dan *Order Flow*. 
-Analisis aset {asset} berdasarkan data teknikal berikut.
-
-DATA MARKET (Last 30 Periods):
+Analis Senior Market Structure & Order Flow.
+Aset: {asset}
+Data 30 Periode:
 {data_str}
 
-INSTRUKSI ANALISIS (WAJIB DIIKUTI):
-1. MARKET STRUCTURE: Identifikasi fase (uptrend/downtrend/sideways) via EMA20/50/200.
-2. MOMENTUM & FLOW: Analisis interaksi Vol_Wave dan Inflow_Ratio.
-3. SENSITIVITY: Apakah RSI/Stoch divergen atau konfirmasi?
-4. ELLIOTT WAVE: Hipotesis fase saat ini (Impulsive vs Corrective).
-5. VERDICT: [SUPER YAHUD / YAHUD / WATCHLIST / WEAK / SKIP].
-6. TRADING PLAN: Risk/Reward, Entry, SL, TP realistis.
-
-FORMAT OUTPUT: Markdown profesional, sub-header jelas, "Evidence-based analysis".
+Tugas:
+1. Analisis Tren & Akumulasi Bandar.
+2. Cek Inflow vs Harga.
+3. Berikan Verdict [SUPER YAHUD / YAHUD / WATCHLIST / WEAK / SKIP].
+4. Berikan Plan: Entry, SL, TP.
 """
 
-# --- FILTERS ---
-def check_sniper(df):
-    if len(df) < 30: return False
-    l = df.iloc[-1]
-    vol_spike = l["Volume"] > (df["Volume"].rolling(20).mean().iloc[-1] * 1.2)
-    uptrend = l["Close"] > l["ema200"]
-    bull_candle = l["Close"] > l["Open"] and (l["Close"]-l["Open"]) > (l["High"]-l["Low"])*0.4
-    return uptrend and vol_spike and bull_candle
-
-# --- MAIN APP ---
+# --- MAIN ---
 def main():
     init_state()
-    st.title("🔮 Aulsome Matrix Pro V5.1")
+    st.title("🔮 Aulsome Matrix Pro V5.3")
     
     with st.sidebar:
-        st.header("⚙️ Filter Engine")
+        st.header("⚙️ Smart Money Filter")
         market = st.radio("Universe", ["IHSG", "Crypto"], horizontal=True)
-        timeframe = st.selectbox("Timeframe", ["15m","1h","4h","1d"], index=3)
-        mode = st.selectbox("Metode Screening", ["Sniper Filter 🎯", "Inflow Detector 💰", "Wave Matrix 🌊", "Candlestick Pattern 🕯️"])
+        timeframe = st.selectbox("Timeframe", ["1h","4h","1d"], index=2)
+        
+        # TOGGLE KUNCI BIAR HASIL TIDAK KOSONG
+        st.markdown("---")
+        st.subheader("🛠️ Strictness Level")
+        use_trend = st.checkbox("Wajib Uptrend (EMA 200)", value=True)
+        use_vol = st.checkbox("Wajib Volume Spike (>Avg)", value=True)
+        use_inflow = st.checkbox("Wajib Inflow Positive (>1.0)", value=True)
+        
+        st.markdown("---")
+        mode = st.selectbox("Metode Screening", ["Candlestick Pattern 🕯️", "Sniper Filter 🎯", "Inflow Detector 💰", "Wave Matrix 🌊"])
         
         strategy = None
-        if mode == "Inflow Detector 💰":
+        if mode == "Candlestick Pattern 🕯️":
+            strategy = st.selectbox("Pilih Pola", [
+                "Hammer", "Bullish Engulfing", "Inverted Hammer", "Bullish Harami", 
+                "Dragonfly Doji", "Piercing Pattern", "Bullish Marubozu", "Tweezer Bottom", 
+                "Bullish Spinning Top", "Rising Three Method", "Bullish Long Legged Doji", 
+                "Three White Soldiers", "Three Inside Up", "Morning Star", "Three Outside Up"
+            ])
+        elif mode == "Inflow Detector 💰":
             strategy = st.selectbox("Signal", ["High Inflow (≥1.5x)", "Inflow + Bandar Akumulasi"])
         elif mode == "Wave Matrix 🌊":
             strategy = st.selectbox("Signal", ["Garis Putih (Oversold)", "Golden Cross"])
-        elif mode == "Candlestick Pattern 🕯️":
-            strategy = st.selectbox("Pola", ["Hammer", "Bullish Engulfing", "Three White Soldiers", "Morning Star", "Tweezer Bottom"])
 
-        st.markdown("---")
         min_turnover = st.number_input("Min Turnover (Mln)", 0.0, 5000.0, 10.0)
         run_scan = st.button("🚀 MULAI SCANNING", use_container_width=True)
 
     suffix = ".JK" if market == "IHSG" else "-USD"
-    tickers = sorted([f"{t.strip()}{suffix}" for t in (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split() if t.strip()])
+    tickers = (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()
+    tickers = [f"{t.strip()}{suffix}" for t in tickers if t.strip()]
 
-    tab_res, tab_deep = st.tabs(["📊 Hasil Screening", "🧠 Deep Journey"])
+    tab1, tab2 = st.tabs(["📊 Hasil Screening", "🧠 Deep Journey"])
 
-    with tab_res:
+    with tab1:
         if run_scan:
             results = []
             prog = st.progress(0)
             def process(t):
                 df = fetch_data(t, timeframe)
                 df = compute_technicals(df)
-                if df is None or len(df) < 50: return None
+                if df is None: return None
                 latest = df.iloc[-1]
                 if latest["value_now_m"] < min_turnover: return None
                 
+                # Filter Inflow Dasar (Selalu aktif agar USP terjaga)
+                if latest["inflow_ratio"] < 1.0 and use_inflow: return None
+                
                 matched = False
-                pat = detect_patterns(df)
-                if mode == "Sniper Filter 🎯": matched = check_sniper(df)
+                pat = detect_patterns(df, use_trend, use_vol, use_inflow)
+                
+                if mode == "Candlestick Pattern 🕯️": matched = (pat == strategy)
+                elif mode == "Sniper Filter 🎯":
+                    vol_ok = (latest["Volume"] > df["Volume"].rolling(20).mean().iloc[-1]) if use_vol else True
+                    trend_ok = (latest["Close"] > latest["ema200"]) if use_trend else True
+                    matched = trend_ok and vol_ok and pat != "Neutral"
                 elif mode == "Inflow Detector 💰":
                     if "High" in strategy: matched = latest["inflow_ratio"] >= 1.5
                     else: matched = latest["inflow_ratio"] > 1.2 and latest["vol_wave"] > 0
                 elif mode == "Wave Matrix 🌊":
                     if "Putih" in strategy: matched = latest["struct_wave"] < -60
                     else: matched = df.iloc[-2]["struct_wave"] < df.iloc[-2]["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
-                elif mode == "Candlestick Pattern 🕯️":
-                    matched = (pat == strategy)
                 
                 if matched:
-                    return {"Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2), "Score": int(latest["bull_score"]), "Inflow": round(latest["inflow_ratio"],2), "Bandar": round(latest["vol_wave"],1), "Pattern": pat}
+                    return {"Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2), "Inflow": round(latest["inflow_ratio"],2), "Score": int(latest["bull_score"]), "Pattern": pat, "Bandar": round(latest["vol_wave"],1)}
                 return None
 
             with ThreadPoolExecutor(max_workers=20) as exe:
@@ -225,8 +246,10 @@ def main():
 
         if st.session_state["results"]:
             st.dataframe(pd.DataFrame(st.session_state["results"]), use_container_width=True, hide_index=True)
+        else:
+            st.warning("⚠️ Tidak ada aset yang lolos filter. Coba matikan 'Wajib Uptrend' atau 'Wajib Volume Spike' di sidebar.")
 
-    with tab_deep:
+    with tab2:
         if st.session_state["results"]:
             selected = st.selectbox("Pilih Saham:", [r["Asset"] for r in st.session_state["results"]])
             df_p = compute_technicals(fetch_data(selected + suffix, timeframe))
@@ -240,15 +263,12 @@ def main():
                 fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                if st.button("🪄 Get Order Flow AI Insight"):
+                if st.button("🪄 AI Order Flow Analysis"):
                     client = get_client()
                     if client:
-                        with st.spinner("Menganalisis 30 periode market structure..."):
-                            prompt = build_ai_prompt(selected, df_p)
-                            resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
-                            st.markdown(resp.choices[0].message.content)
-                    else: st.error("GROQ_KEY belum ada di Secrets!")
-        else: st.info("Scan market dulu.")
+                        prompt = build_ai_prompt(selected, df_p)
+                        resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
+                        st.markdown(resp.choices[0].message.content)
 
 if __name__ == "__main__":
     main()
