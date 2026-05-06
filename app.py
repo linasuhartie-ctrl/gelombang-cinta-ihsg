@@ -13,10 +13,10 @@ from groq import Groq
 import time
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 1. CONFIG & UNIVERSE (PROTECTION AGAINST NAMEERROR)
+# 1. CONFIG & UNIVERSE
 # ──────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Aulsome Matrix Pro V5.7",
+    page_title="Aulsome Matrix Pro V5.8",
     page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -26,7 +26,7 @@ IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO 
 CRYPTO_MEGA = """BTC ETH BNB SOL XRP ADA DOGE AVAX DOT MATIC LINK SHIB LTC NEAR UNI APT ARB OP TIA SUI FET RNDR STX FIL ATOM IMX HBAR ETC ICP PEPE WIF BONK ORDI INJ THETA LDO VET BEAM SEI AAVE MKR RUNE GALA EGLD ALGO FLOW DYDX CRV SNX PENDLE JUP PYTH STRK W ENA ROSE AGIX STG AXS SAND MANA CHZ MINA KAVA GRT AGLD JASMY TRX KAS XLM XMR BCH BSV LUNC LUNA USTC JTO 1INCH MASK ENS BLUR T GLM AKT NOS IO AEVO ZK ZRO LISTA NOT BB PIXEL PORTAL XAI ACE SATS FLOKI MEME LADYS TURBO PEOPLE TRB GAS ARK WAVES ONT ONG NEO QTUM DGB SC XVG HOT RVN CKB SLP GNS PERP GMX WOO ZRX KNC LRC SUSHI BAKE JOE CAKE PORK BRETT BOME MEW MYRO WEN COQ KDA OSMO RETH LPT ALT MANTA ONDO RIF NTRN PAI SKL METIS SCRT CFX ACH TRU HOOK MAGIC GAL CORE EDU ID COMBO RDNT HIFI MAV PUNDIX BEL FRONT C98 MTL REEF ATA ALICE PROM DAR CHR SXP STEEM KMD STRAX ADX ICX OGN NKN DENT KEY MFT DATA VTHO STMX IQ UTK OXT ANKR CTSI COS TROY PIVX SYS SCR GFT QKC IOTX CTXC DOCK MITH TFUEL GTC MLN BOND FOR LINA DEGO EPS AUTO TKO TVK QUICK ERN RAMP PHA BAR CITY ASR JUV ATM OG PSG SANTOS LAZIO ALPINE FLOW MIR ANC ZEN RARE CLV ALPHA FIS SPELL CHESS QI GHST VOXEL BNX NMR VIB AST OAX DUSK LSK ARDR LOOM REQ AKRO POLS HARD STPT OOKI UNFI WING FOR BOND MOB MOVR SYN HIGH"""
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. CORE HELPERS & INDICATORS
+# 2. CORE ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 def init_state():
     if "results" not in st.session_state: st.session_state["results"] = []
@@ -94,7 +94,7 @@ def compute_technicals(df):
     except: return None
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. PATTERN ENGINE (BIBLE OF 15 PATTERNS)
+# 3. PATTERN ENGINE & REPORT
 # ──────────────────────────────────────────────────────────────────────────────
 def detect_patterns(df, use_trend, use_vol, use_inflow):
     if df is None or len(df) < 15: return "Neutral"
@@ -102,7 +102,6 @@ def detect_patterns(df, use_trend, use_vol, use_inflow):
         c, p, p2, p3, p4 = df.iloc[-1], df.iloc[-2], df.iloc[-3], df.iloc[-4], df.iloc[-5]
     except IndexError: return "Neutral"
     
-    # Strictness Guards
     uptrend = (c["Close"] > c["ema200"]) if use_trend else True
     vol_valid = (c["Volume"] > c["vol_sma20"]) if use_vol else True
     inflow_valid = (c["inflow_ratio"] > 1.0) if use_inflow else True
@@ -114,7 +113,6 @@ def detect_patterns(df, use_trend, use_vol, use_inflow):
     def is_bear(n): return n["Open"] > n["Close"]
     def tr(n): return n["High"] - n["Low"]
 
-    # The 15 Logic Blocks
     if (min(c["Open"], c["Close"]) - c["Low"]) > 1.8 * b(c) and (c["High"] - max(c["Open"], c["Close"])) < 0.2 * b(c): return "Hammer"
     if is_bear(p) and is_bull(c) and c["Open"] <= p["Close"] and c["Close"] >= p["Open"]: return "Bullish Engulfing"
     if (c["High"] - max(c["Open"], c["Close"])) > 1.8 * b(c) and (min(c["Open"], c["Close"]) - c["Low"]) < 0.2 * b(c): return "Inverted Hammer"
@@ -133,61 +131,57 @@ def detect_patterns(df, use_trend, use_vol, use_inflow):
 
     return "Neutral"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 4. REPORT GENERATOR
-# ──────────────────────────────────────────────────────────────────────────────
 def prepare_download_file(df, filters):
-    meta = f"--- Aulsome Matrix Pro Scan Report ---\n"
-    meta += f"Date: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-    meta += "Filters Applied:\n"
+    meta = f"--- Aulsome Matrix Pro Report ---\nDate: {time.strftime('%Y-%m-%d %H:%M:%S')}\nFilters:\n"
     for k, v in filters.items(): meta += f"- {k}: {v}\n"
-    meta += "---------------------------------------\n\n"
+    meta += "---------------------------------\n\n"
     return meta + df.to_csv(index=False)
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 5. MAIN APP UI
+# 4. MAIN APP
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
     init_state()
-    st.title("🔮 Aulsome Matrix Pro V5.7")
+    st.title("🔮 Aulsome Matrix Pro V5.8")
     
     with st.sidebar:
-        st.header("⚙️ Smart Money Panel")
+        st.header("⚙️ Panel Kontrol")
         market = st.radio("Universe", ["IHSG", "Crypto"], horizontal=True)
-        timeframe = st.selectbox("Timeframe", ["15m","1h","4h","1d"], index=3)
+        timeframe = st.selectbox("Timeframe", ["1h","4h","1d"], index=2)
         
         st.markdown("---")
         st.subheader("🛠️ Strictness Level")
         use_trend = st.checkbox("Wajib Uptrend (EMA 200)", value=True)
-        use_vol = st.checkbox("Wajib Volume Spike (>Avg)", value=True)
-        use_inflow = st.checkbox("Wajib Inflow Positive (>1.0)", value=True)
+        use_vol = st.checkbox("Wajib Volume Spike", value=True)
+        use_inflow = st.checkbox("Wajib Inflow > 1.0", value=True)
         
         st.markdown("---")
-        mode = st.selectbox("Metode Screening", ["Candlestick Pattern 🕯️", "Sniper Filter 🎯", "Inflow Detector 💰", "Wave Matrix 🌊"])
+        mode = st.selectbox("Metode Screening", ["Wave Matrix 🌊", "Candlestick Pattern 🕯️", "Sniper Filter 🎯", "Inflow Detector 💰"])
         
+        # LOGIC BARU: WAVE METERAN
         strategy = None
-        if mode == "Candlestick Pattern 🕯️":
-            strategy = st.selectbox("Pilih Bullish Pattern", [
-                "Hammer", "Bullish Engulfing", "Inverted Hammer", "Bullish Harami", 
-                "Dragonfly Doji", "Piercing Pattern", "Bullish Marubozu", "Tweezer Bottom", 
-                "Bullish Spinning Top", "Rising Three Method", "Bullish Long Legged Doji", 
-                "Three White Soldiers", "Three Inside Up", "Morning Star", "Three Outside Up"
+        wave_threshold = -60
+        if mode == "Wave Matrix 🌊":
+            strategy = st.selectbox("Signal", ["Garis Putih (Oversold)", "Golden Cross"])
+            if strategy == "Garis Putih (Oversold)":
+                wave_threshold = st.slider("Min Threshold Putih", -100, 100, -60, help="Semakin rendah semakin oversold")
+        elif mode == "Candlestick Pattern 🕯️":
+            strategy = st.selectbox("Pilih Pola", [
+                "Hammer", "Bullish Engulfing", "Morning Star", "Three White Soldiers", "Three Outside Up"
             ])
         elif mode == "Inflow Detector 💰":
             strategy = st.selectbox("Signal", ["High Inflow (≥1.5x)", "Inflow + Bandar Akumulasi"])
-        elif mode == "Wave Matrix 🌊":
-            strategy = st.selectbox("Signal", ["Garis Putih (Oversold)", "Golden Cross"])
 
         min_turnover = st.number_input("Min Turnover (Mln)", 0.0, 5000.0, 10.0)
         run_scan = st.button("🚀 EXECUTE SCAN", use_container_width=True)
 
     suffix = ".JK" if market == "IHSG" else "-USD"
-    tickers_list = (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()
-    tickers = [f"{t.strip()}{suffix}" for t in tickers_list if t.strip()]
+    tickers_raw = (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()
+    tickers = [f"{t.strip()}{suffix}" for t in tickers_raw if t.strip()]
 
-    tab_res, tab_deep = st.tabs(["📊 Hasil Screening", "🧠 Deep Journey"])
+    tab1, tab2 = st.tabs(["📊 Hasil Screening", "🧠 Deep Journey"])
 
-    with tab_res:
+    with tab1:
         if run_scan:
             results = []
             prog = st.progress(0)
@@ -204,7 +198,12 @@ def main():
                     matched = False
                     pat = detect_patterns(df, use_trend, use_vol, use_inflow)
                     
-                    if mode == "Candlestick Pattern 🕯️": matched = (pat == strategy)
+                    if mode == "Wave Matrix 🌊":
+                        if "Putih" in strategy: 
+                            matched = latest["struct_wave"] <= wave_threshold
+                        else: # Golden Cross
+                            matched = df.iloc[-2]["struct_wave"] < df.iloc[-2]["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
+                    elif mode == "Candlestick Pattern 🕯️": matched = (pat == strategy)
                     elif mode == "Sniper Filter 🎯":
                         vol_ok = (latest["Volume"] > df["Volume"].rolling(20).mean().iloc[-1]) if use_vol else True
                         trend_ok = (latest["Close"] > latest["ema200"]) if use_trend else True
@@ -212,12 +211,9 @@ def main():
                     elif mode == "Inflow Detector 💰":
                         if "High" in strategy: matched = latest["inflow_ratio"] >= 1.5
                         else: matched = latest["inflow_ratio"] > 1.2 and latest["vol_wave"] > 0
-                    elif mode == "Wave Matrix 🌊":
-                        if "Putih" in strategy: matched = latest["struct_wave"] < -60
-                        else: matched = df.iloc[-2]["struct_wave"] < df.iloc[-2]["dom_wave"] and latest["struct_wave"] > latest["dom_wave"]
                     
                     if matched:
-                        return {"Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2), "Inflow": round(latest["inflow_ratio"],2), "Score": int(latest["bull_score"]), "Pattern": pat, "Bandar": round(latest["vol_wave"],1)}
+                        return {"Asset": t.replace(suffix,""), "Price": round(latest["Close"], 2), "Inflow": round(latest["inflow_ratio"],2), "Score": int(latest["bull_score"]), "WhiteWave": round(latest["struct_wave"],1), "Bandar": round(latest["vol_wave"],1)}
                 except: return None
                 return None
 
@@ -228,34 +224,25 @@ def main():
             
             st.session_state["results"] = results
             st.session_state["last_filters"] = {
-                "Market": market, "Timeframe": timeframe, "Mode": mode,
-                "Strategy": strategy if strategy else "N/A",
-                "EMA200": use_trend, "VolSpike": use_vol, "InflowGuard": use_inflow
+                "Market": market, "Mode": mode, "Strategy": strategy, 
+                "WhiteThreshold": wave_threshold if mode == "Wave Matrix 🌊" else "N/A"
             }
             st.rerun()
 
         if st.session_state["results"]:
-            df_view = pd.DataFrame(st.session_state["results"])
-            st.dataframe(df_view, use_container_width=True, hide_index=True)
+            df_res = pd.DataFrame(st.session_state["results"])
+            st.dataframe(df_res, use_container_width=True, hide_index=True)
             
-            # --- DOWNLOAD BUTTON ---
-            csv_data = prepare_download_file(df_view, st.session_state["last_filters"])
-            st.download_button(
-                label="📥 DOWNLOAD REPORT (CSV)",
-                data=csv_data,
-                file_name=f"Report_{market}_{time.strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
-        else:
-            st.info("Gunakan Sidebar untuk memulainya.")
+            # --- EXPORT FEATURE ---
+            csv_data = prepare_download_file(df_res, st.session_state["last_filters"])
+            st.download_button("📥 DOWNLOAD CSV REPORT", csv_data, f"Report_{time.strftime('%Y%m%d_%H%M%S')}.csv", "text/csv", use_container_width=True)
+        else: st.info("Gunakan sidebar untuk memulainya.")
 
-    with tab_deep:
+    with tab2:
         if st.session_state["results"]:
             selected = st.selectbox("Pilih Saham:", [r["Asset"] for r in st.session_state["results"]])
             df_p = compute_technicals(fetch_data(selected + suffix, timeframe))
             if df_p is not None:
-                # 3-Row Multi-Wave Chart
                 fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.25, 0.25])
                 fig.add_trace(go.Candlestick(x=df_p.index, open=df_p["Open"], high=df_p["High"], low=df_p["Low"], close=df_p["Close"], name="Price"), row=1, col=1)
                 fig.add_trace(go.Scatter(x=df_p.index, y=df_p["ema200"], name="EMA 200", line=dict(color="white")), row=1, col=1)
@@ -265,19 +252,17 @@ def main():
                 fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
                 st.plotly_chart(fig, use_container_width=True)
                 
-                # AI Order Flow Analysis
-                if st.button("🪄 Get AI Order Flow Insight"):
+                if st.button("🪄 AI Order Flow Analysis"):
                     client = get_client()
                     if client:
                         with st.spinner("AI sedang membaca Market Structure..."):
                             lookback = df_p.tail(30).copy()
                             cols = ['Open', 'High', 'Low', 'Close', 'vol_wave', 'struct_wave', 'inflow_ratio', 'bull_score']
                             data_str = lookback[cols].to_string()
-                            prompt = f"Senior Technical Analyst (Order Flow Specialist). Analisis {selected} (30 periode):\n{data_str}\nBeri Verdict & Trading Plan."
+                            prompt = f"Senior Technical Analyst. Analisis {selected} (30 periode):\n{data_str}\nBeri Verdict & Trading Plan."
                             resp = client.chat.completions.create(messages=[{"role":"user","content":prompt}], model="llama-3.3-70b-versatile")
                             st.markdown(resp.choices[0].message.content)
-                    else: st.error("Secrets: GROQ_KEY Kosong!")
-        else: st.info("Scan market dulu di Tab 1.")
+        else: st.info("Scan market dulu.")
 
 if __name__ == "__main__":
     main()
