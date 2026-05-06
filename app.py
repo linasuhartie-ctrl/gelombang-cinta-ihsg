@@ -91,12 +91,50 @@ def compute_technicals(df):
         return df.dropna()
     except: return None
 
+# MODIFIKASI: Penambahan 6 High-Probability Bullish Candlesticks
 def detect_patterns(df):
     if df is None or len(df) < 5: return "Neutral"
-    c, p = df.iloc[-1], df.iloc[-2]
+    
+    # Ambil 3 candle terakhir untuk mendeteksi berbagai variasi formasi
+    c = df.iloc[-1]   # Current candle
+    p = df.iloc[-2]   # Previous candle
+    p2 = df.iloc[-3]  # Previous-previous candle
+    
     body_c = abs(c["Close"] - c["Open"])
-    if (min(c["Open"], c["Close"]) - c["Low"]) > 2 * body_c and c["rsi"] < 40: return "Hammer"
-    if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Open"] < p["Close"] and c["Close"] > p["Open"]: return "Bullish Engulfing"
+    body_p = abs(p["Close"] - p["Open"])
+    range_c = (c["High"] - c["Low"]) if (c["High"] - c["Low"]) > 0 else 0.001
+    range_p = (p["High"] - p["Low"]) if (p["High"] - p["Low"]) > 0 else 0.001
+    
+    upper_shadow_c = c["High"] - max(c["Close"], c["Open"])
+    lower_shadow_c = min(c["Close"], c["Open"]) - c["Low"]
+    
+    # 1. Morning Star (Formasi 3 Candle)
+    bearish_1 = p2["Close"] < p2["Open"]
+    small_2 = abs(p["Close"] - p["Open"]) <= range_p * 0.3
+    bullish_3 = (c["Close"] > c["Open"]) and (c["Close"] >= (p2["Open"] + p2["Close"]) / 2)
+    if bearish_1 and small_2 and bullish_3: 
+        return "Morning Star"
+        
+    # 2. Bullish Engulfing
+    if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Close"] >= p["Open"] and c["Open"] <= p["Close"]: 
+        return "Bullish Engulfing"
+        
+    # 3. Bullish Harami (Inside Bar)
+    if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Low"] > p["Low"] and c["High"] < p["High"]: 
+        return "Bullish Harami"
+        
+    # 4. Tweezer Bottom
+    if p["Close"] < p["Open"] and c["Close"] > c["Open"] and abs(c["Low"] - p["Low"]) <= (range_c * 0.05): 
+        return "Tweezer Bottom"
+        
+    # 5. Dragonfly Doji
+    if body_c <= range_c * 0.1 and upper_shadow_c <= range_c * 0.1 and c["Low"] < min(c["Close"], c["Open"]): 
+        return "Dragonfly Doji"
+        
+    # 6. Hammer / Bullish Pin Bar (Menggabungkan logika filter lama RSI < 40 untuk menjaga kompatibilitas fitur sebelumnya)
+    if lower_shadow_c > 2 * body_c and (c["rsi"] < 40 or (c["Close"] > c["Open"] and upper_shadow_c <= body_c * 0.2)): 
+        return "Hammer"
+
     return "Neutral"
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -151,8 +189,19 @@ def main():
         if mode == "Wave Matrix 🌊":
             strategy = st.selectbox("Signal", ["Bullish Reversal (Bottoming)", "Bearish Reversal (Topping)", "Bullish Continuation", "Bearish Continuation"])
             wave_threshold = st.slider("White Threshold", -100, 100, -80 if "Bullish" in strategy else 80)
+        
+        # MODIFIKASI: Penambahan dropdown menu untuk 6 pilihan Pola Candlestick
         elif mode == "Candlestick Pattern 🕯️":
-            strategy = st.selectbox("Pattern", ["Hammer", "Bullish Engulfing"])
+            strategy = st.selectbox("Pattern", [
+                "Bullish Engulfing", 
+                "Dragonfly Doji", 
+                "Morning Star", 
+                "Hammer", 
+                "Bullish Harami", 
+                "Tweezer Bottom",
+                "Any Bullish Pattern" # Pilihan sapu jagat
+            ])
+            
         elif mode == "Inflow Detector 💰":
             strategy = st.selectbox("Level", ["High Inflow (≥1.5x)", "Accumulation (≥1.2x + Vol↑)"])
         
@@ -190,8 +239,15 @@ def main():
                     matched = latest["vol_wave"] > 0 and latest["vol_wave"] > latest["dom_wave"] > latest["struct_wave"]
                 elif "Bearish Continuation" in strategy:
                     matched = latest["vol_wave"] < 0 and latest["vol_wave"] < latest["dom_wave"] < latest["struct_wave"]
+            
+            # MODIFIKASI: Logika matching untuk Candlestick
             elif mode == "Candlestick Pattern 🕯️":
-                matched = detect_patterns(df) == strategy
+                detected_pattern = detect_patterns(df)
+                if strategy == "Any Bullish Pattern":
+                    matched = detected_pattern != "Neutral"
+                else:
+                    matched = detected_pattern == strategy
+                    
             elif mode == "Inflow Detector 💰":
                 matched = latest["inflow_ratio"] >= 1.5 if "High" in strategy else (latest["inflow_ratio"] > 1.2 and latest["vol_wave"] > 0)
             elif mode == "Sniper Filter 🎯":
