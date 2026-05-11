@@ -15,12 +15,7 @@ from datetime import datetime
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. CONFIG & UNIVERSE
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Aulsome Matrix Pro V7.2",
-    page_icon="🌊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+st.set_page_config(page_title="Aulsome Matrix Pro V7.3", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
 
 IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO AHAP AISA AKPI AKRA ALDO ALKA ALMI AMAG AMAN AMAR AMFG AMIN AMMN AMRT ANJT ANTM APEX APLN ARCI ARGO ARII ARNA ARTA ARTI ARTO ASBI ASGR ASII ASRI ASRM ASSA ATIC AUTO AVIA BABP BACA BAJA BALI BANK BAPA BATA BBCA BBHI BBKP BBLD BBMD BBNI BBRI BBRM BBTN BBYB BCAP BCIC BDMN BEKS BELL BESS BEST BFIN BGTG BINA BIPI BIPP BIRD BISI BJBR BJTM BKDP BKSL BLTA BMAS BMHS BMRI BMSR BMTR BNBA BNBR BNGA BNII BNLI BOBA BOLA BPFI BRIS BREN BRMS BRNA BRPT BSDE BSIM BSSR BSWD BTEK BTEL BTON BTPN BTPS BUDI BUKK BULL BUMI BVIC BWPT BYAN CAKK CAMP CARS CASH CASS CCSI CEKA CENT CFIN CINT CITA CITY CLEO CMNP CMPP CNKO CNTX COAL CPIN CPRO CSAP CSRA CTBN CTRA DART DAYA DCII DEAL DEWA DFAM DGIK DILD DIVA DKFT DLTA DMMX DMND DNAR DNET DOID DPNS DSFI DSNG DSSA DUTI DYAN EAST EKAD ELSA EMDE EMTK ENRG EPMT ERAA ESSA ETWA EXCL FAST FASW FILM FIRE FISH FMII FOOD FORU FORZ FPNI FREN GAMA GDST GDYR GEMA GEMS GGRM GIAA GJTL GLOB GLVA GMFI GMTD GOLD GOOD GOTO GPRA GSMF GTBO GWSA GZCO HADE HAIS HDFA HEAL HERO HEXA HITS HKMU HMSP HOKI HOME HRME HRTA HRUM IATA IBST ICBP ICON IDEA IGAR IIKP IKAI IMAS IMJS IMPC INAF INAI INCF INCI INCO INDF INDO INDR INDS INDY INPC INPS INRU INTA INTP IPCC IPCM IPOL IPTV IRRA ISAT ISSP ITIC ITMG JAKS JAST JAWA JAYA JECC JGLE JIHD JKON JMAS JSPT JTPE KAEF KBLI KBLM KBLV KDSI KEEN KEJU KIAS KICI KIJA KINO KIOS KKGI KLBF KOBX KOIN KONI KPIG KRYA LAMI LCGP LEAD LINK LION LMAS LMPI LMSH LPCK LPGI LPIN LPKR LPLI LPPF LSIP LTLS MAIN MAMI MAPA MAPB MAPI MARK MASA MAYA MBAP MBSS MBTO MCAS MCOR MDIA MDKA MDLN MDRN MEDC MEGA MERK META MFIN MICE MIDI MIKA MINA MIRA MITI MKPI MLBI MLIA MLPL MLPT MMLP MNCN MOLI MORA MPMX MPPA MSIN MSKY MTDL MTEL MTLA MTMH MTPS MTRA MTSM MYOH MYOR MYRX MYTX NANO NELY NFCX NIPS NIRO NISP NOBU NRCA NZIA OASA OBMD OMED OMRE ONIX PADI PALM PAMG PANI PANR PANS PBSA PCAR PEGE PEHA PGAS PGEO PGLI PICO PJAA PKPK PLAS PLIN PNBN PNBS PNIN PNLF PNSE POLA POLI POLL POLY POOL PORT PRAS PRDA PSAB PSDN PSGO PSKT PTBA PTPP PTPW PUDA PURA PWON PYFA PZZA RAJA RALS RANC RBMS RDTX REAL RELI RICY RIGS RIMO RMBA ROCK ROTI RSGK RUIS SAFE SAME SAMF SAPX SCCO SCMA SCNP SDMU SDPC SFAN SGER SGRO SHID SIDO SILO SIMA SIMP SINI SIPD SKBM SKLT SKYB SMAR SMBR SMCB SMDR SMGR SMIL SMKL SMMA SMMT SMRA SMRU SMSM SOBI SOHO SONA SOSS SOTO SPMA SQMI SRAJ SRIL SRSN SRTG SSIA SSMS SSTM STTP SUGI SULI SUPR SURE SWAT TAXI TAYS TBIG TBLA TBMS TCID TCPI TEBE TECH TELE TFCO TGKA TIFA TINS TIRA TIRT TKIM TLDN TLKM TMAS TMPO TNCA TOBA TOYS TPIA TPMA TRAM TRIL TRIM TRIN TRIS TRJA TRST TRUK TSPC TUGU TURI ULTJ UNIC UNIT UNSP UNTR UNVR URBN VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX"""
 
@@ -56,7 +51,7 @@ def fetch_data(ticker, timeframe):
         return None
 
 def compute_technicals(df):
-    """FIX #11: bull_score sekarang kontinu, bukan diskrit."""
+    """V7.3: 4 Gelombang ASLI sesuai Pine Script Aul Wave."""
     if df is None or len(df) < 100: return None
     try:
         df = df.copy()
@@ -66,28 +61,59 @@ def compute_technicals(df):
         df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
         df["atr"] = ta.volatility.AverageTrueRange(df["High"], df["Low"], df["Close"], window=14).average_true_range()
 
-        # AUL WAVE 4 WARNA
-        hl = (df["High"] - df["Low"]).replace(0, 0.001)
-        mf_vol = (((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl) * df["Volume"]
-        df["vol_wave"] = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 0.001) * 100).ewm(span=5).mean()
-        df["dom_wave"] = ((df["rsi"] - 50) * 2).ewm(span=3).mean()
-        hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
-        df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
+        # ════════════════════════════════════════════════════════════════
+        # 🌊 AUL WAVE 4 GELOMBANG ASLI (sesuai Pine Script @yucuppucuy)
+        # ════════════════════════════════════════════════════════════════
 
+        # 1️⃣ VOL WAVE (KUNING) — Smart Money Flow / Chaikin Money Flow
+        hl = (df["High"] - df["Low"]).replace(0, 1e-9)
+        mf_mult = ((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl
+        mf_vol = mf_mult * df["Volume"]
+        vol_raw = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 1e-9)) * 100
+        df["vol_wave"] = vol_raw.ewm(span=5, adjust=False).mean()
+
+        # 2️⃣ TREND WAVE (BIRU) — True Strength Index (TSI)
+        pc = df["Close"].diff()
+        ds_pc = pc.ewm(span=25, adjust=False).mean().ewm(span=13, adjust=False).mean()
+        ds_abs_pc = pc.abs().ewm(span=25, adjust=False).mean().ewm(span=13, adjust=False).mean()
+        df["trend_wave"] = 100 * (ds_pc / ds_abs_pc.replace(0, 1e-9))
+
+        # 3️⃣ DOM WAVE (UNGU) — Bull/Bear Dominance dari RSI
+        df["dom_wave"] = ((df["rsi"] - 50) * 2).ewm(span=3, adjust=False).mean()
+
+        # 4️⃣ STRUCT WAVE (PUTIH) — Price Structure 20-bar
+        hh = df["High"].rolling(20).max()
+        ll = df["Low"].rolling(20).min()
+        struct_raw = ((df["Close"] - ll) / (hh - ll).replace(0, 1e-9)) * 200 - 100
+        df["struct_wave"] = pandas_wma(struct_raw, 8)
+
+        # ════════════════════════════════════════════════════════════════
+        # KONVERGENSI (sesuai Pine Script)
+        # ════════════════════════════════════════════════════════════════
+        df["max_buy"] = ((df["vol_wave"] > 80) & (df["trend_wave"] > 80) & 
+                         (df["dom_wave"] > 80) & (df["struct_wave"] > 80))
+        df["max_sell"] = ((df["vol_wave"] < -80) & (df["trend_wave"] < -80) & 
+                          (df["dom_wave"] < -80) & (df["struct_wave"] < -80))
+        df["cross_up"] = ((df["vol_wave"] > 0) & (df["trend_wave"] > 0) & 
+                          (df["dom_wave"] > 0) & (df["struct_wave"] > 0))
+        df["cross_down"] = ((df["vol_wave"] < 0) & (df["trend_wave"] < 0) & 
+                            (df["dom_wave"] < 0) & (df["struct_wave"] < 0))
+
+        # Inflow & supporting
         df["value_now_m"] = (df["Close"] * df["Volume"]) / 1e6
         df["value_ma20"] = df["value_now_m"].rolling(20).mean()
-        df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 0.001)
+        df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 1e-9)
 
-        # FIX #11: Bull score kontinu (gelombang hijau)
+        # Bull Score composite (untuk grading internal)
         df["bull_score"] = (
-            df["vol_wave"].clip(-50, 50) / 50 * 25 +
-            df["dom_wave"].clip(-50, 50) / 50 * 20 +
-            (df["inflow_ratio"] - 1).clip(0, 1) * 25 +
-            (df["struct_wave"] + 100).clip(0, 200) / 200 * 30
-        ).clip(0, 100)
+            df["vol_wave"].clip(-100, 100) / 100 * 25 +
+            df["trend_wave"].clip(-100, 100) / 100 * 25 +
+            df["dom_wave"].clip(-100, 100) / 100 * 25 +
+            df["struct_wave"].clip(-100, 100) / 100 * 25
+        ).clip(-100, 100)
 
         # BSJP / BPJS metrics
-        df["close_position"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"]).replace(0, 0.001)
+        df["close_position"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"]).replace(0, 1e-9)
         df["candle_range_pct"] = (df["High"] - df["Low"]) / df["Close"] * 100
         df["gap_pct"] = (df["Open"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100
         df["intraday_return"] = (df["Close"] - df["Open"]) / df["Open"] * 100
@@ -102,7 +128,6 @@ def compute_technicals(df):
         return None
 
 def detect_patterns(df):
-    """FIX #10: Morning Star sekarang punya absolute body threshold."""
     if df is None or len(df) < 5: return "Neutral"
     c, p, p2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]
     body_c = abs(c["Close"] - c["Open"])
@@ -112,7 +137,6 @@ def detect_patterns(df):
     upper_shadow_c = c["High"] - max(c["Close"], c["Open"])
     lower_shadow_c = min(c["Close"], c["Open"]) - c["Low"]
 
-    # FIX #10: tambah syarat body_p absolut kecil (< 1% harga)
     if (p2["Close"] < p2["Open"]) and (body_p <= range_p * 0.3) and (body_p <= p["Close"] * 0.01) \
        and (c["Close"] > c["Open"]) and (c["Close"] >= (p2["Open"] + p2["Close"]) / 2):
         return "Morning Star"
@@ -129,29 +153,61 @@ def detect_patterns(df):
     return "Neutral"
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. CONFLUENCE ENGINE (FIXED)
+# 3. AUL WAVE FILTER — 4 GELOMBANG dengan MIN-MAX
+# ──────────────────────────────────────────────────────────────────────────────
+def check_aul_wave_filter(df, f):
+    """Filter 4 gelombang dengan range (min-max) + opsi rising + konvergensi."""
+    if df is None or len(df) < 5: return False
+    latest, prev = df.iloc[-1], df.iloc[-2]
+
+    # 🟡 KUNING - Vol Wave
+    if f["yellow_enabled"]:
+        if not (f["yellow_min"] <= latest["vol_wave"] <= f["yellow_max"]): return False
+        if f["yellow_rising"] and not (latest["vol_wave"] > prev["vol_wave"]): return False
+
+    # 🔵 BIRU - Trend Wave (TSI)
+    if f["blue_enabled"]:
+        if not (f["blue_min"] <= latest["trend_wave"] <= f["blue_max"]): return False
+        if f["blue_rising"] and not (latest["trend_wave"] > prev["trend_wave"]): return False
+
+    # 🟣 UNGU - Dom Wave
+    if f["purple_enabled"]:
+        if not (f["purple_min"] <= latest["dom_wave"] <= f["purple_max"]): return False
+        if f["purple_rising"] and not (latest["dom_wave"] > prev["dom_wave"]): return False
+
+    # ⚪ PUTIH - Struct Wave
+    if f["white_enabled"]:
+        if not (f["white_min"] <= latest["struct_wave"] <= f["white_max"]): return False
+        if f["white_rising"] and not (latest["struct_wave"] > prev["struct_wave"]): return False
+
+    # Konvergensi
+    if f["require_cross_up"] and not latest["cross_up"]: return False
+    if f["require_max_buy"] and not latest["max_buy"]: return False
+
+    return True
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. CONFLUENCE ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 def ultimate_confluence_score(df):
-    """FIX #1: prev2 sekarang terdefinisi. FIX #2: threshold lebih realistis. FIX #3: korelasi penalty."""
     if df is None or len(df) < 200: return 0, {}
-    latest, prev, prev2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]  # ← FIX #1
+    latest, prev, prev2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]
     breakdown = {}
 
-    # PILAR 1: TREND (20 pts)
     trend_pts = 0
     if latest["ema50"] > latest["ema200"]: trend_pts += 10
     if latest["Close"] > latest["ema50"]: trend_pts += 5
     if latest["ema20"] > latest["ema50"]: trend_pts += 5
+    # bonus jika trend_wave (TSI) positif
+    if latest["trend_wave"] > 0: trend_pts = min(trend_pts + 3, 20)
     breakdown["Trend"] = trend_pts
 
-    # PILAR 2: STRUCTURE (20 pts) - FIX #2: threshold lebih realistis
     struct_pts = 0
     if latest["struct_wave"] <= -40: struct_pts += 12
     elif latest["struct_wave"] <= -20: struct_pts += 6
     if latest["struct_wave"] > prev["struct_wave"]: struct_pts += 8
     breakdown["Structure"] = struct_pts
 
-    # PILAR 3: SMART MONEY (25 pts) - prev2 OK
     flow_pts = 0
     if latest["vol_wave"] > prev["vol_wave"] > prev2["vol_wave"]: flow_pts += 10
     if latest["vol_wave"] > 0: flow_pts += 5
@@ -159,14 +215,12 @@ def ultimate_confluence_score(df):
     elif latest["inflow_ratio"] >= 1.2: flow_pts += 5
     breakdown["SmartMoney"] = flow_pts
 
-    # PILAR 4: MOMENTUM (20 pts)
     mom_pts = 0
     if latest["dom_wave"] > prev["dom_wave"]: mom_pts += 8
     if 30 < latest["rsi"] < 65: mom_pts += 6
     if prev["rsi"] < 35 and latest["rsi"] > prev["rsi"]: mom_pts += 6
     breakdown["Momentum"] = mom_pts
 
-    # PILAR 5: PRICE ACTION (15 pts)
     pa_pts = 0
     pattern = detect_patterns(df)
     if pattern in ["Morning Star", "Bullish Engulfing"]: pa_pts += 10
@@ -177,8 +231,6 @@ def ultimate_confluence_score(df):
     breakdown["PriceAction"] = pa_pts
 
     total = trend_pts + struct_pts + flow_pts + mom_pts + pa_pts
-
-    # FIX #3: Korelasi penalty (Structure & Momentum sering redundan)
     if struct_pts >= 15 and mom_pts >= 15:
         total -= 5
         breakdown["CorrelationPenalty"] = -5
@@ -202,35 +254,26 @@ def calc_trade_plan(latest):
     return entry, sl, tp1, tp2, rr
 
 def bsjp_score(df):
-    """FIX #6: gap magnitude. FIX #7: range filter."""
     if df is None or len(df) < 30: return 0, {}
     latest, prev = df.iloc[-1], df.iloc[-2]
     bd = {}
-
-    # Closing Strength (30 pts) - FIX #7: harus ada range minimum
     cs_pts = 0
-    has_real_range = latest["candle_range_pct"] >= 1.0
-    if has_real_range:
+    if latest["candle_range_pct"] >= 1.0:
         if latest["close_position"] >= 0.8: cs_pts += 20
         elif latest["close_position"] >= 0.65: cs_pts += 12
-    else:
-        cs_pts += 3  # konsolasi kecil untuk sideways
+    else: cs_pts += 3
     if latest["Close"] > latest["Open"]: cs_pts += 10
     bd["Closing Strength"] = cs_pts
 
-    # Gap-Up Edge (35 pts) - FIX #6: + magnitude bonus
     gap_pts = 0
     if latest["gap_up_rate"] >= 65: gap_pts += 12
     elif latest["gap_up_rate"] >= 55: gap_pts += 8
     elif latest["gap_up_rate"] >= 50: gap_pts += 4
-    # Magnitude bonus
-    mag_bonus = min(max(latest["avg_overnight"], 0) * 5, 13)
-    gap_pts += int(mag_bonus)
+    gap_pts += int(min(max(latest["avg_overnight"], 0) * 5, 13))
     if latest["avg_overnight"] > 0.3: gap_pts += 5
     elif latest["avg_overnight"] > 0: gap_pts += 2
     bd["Gap-Up Edge"] = gap_pts
 
-    # Accumulation (20 pts)
     acc_pts = 0
     if latest["vol_wave"] > prev["vol_wave"]: acc_pts += 8
     if latest["inflow_ratio"] >= 1.3: acc_pts += 8
@@ -238,7 +281,6 @@ def bsjp_score(df):
     if latest["vol_wave"] > 0: acc_pts += 4
     bd["Accumulation"] = acc_pts
 
-    # Trend Support (15 pts)
     trend_pts = 0
     if latest["Close"] > latest["ema20"]: trend_pts += 5
     if latest["ema20"] > latest["ema50"]: trend_pts += 4
@@ -249,22 +291,17 @@ def bsjp_score(df):
     return min(cs_pts + gap_pts + acc_pts + trend_pts, 100), bd
 
 def bpjs_score(df):
-    """FIX #8: profit factor. FIX #9: range expansion dengan filter arah."""
     if df is None or len(df) < 30: return 0, {}
     latest, prev = df.iloc[-1], df.iloc[-2]
     bd = {}
-
-    # Intraday Edge (35 pts) - FIX #8: + profit factor
     intra_pts = 0
     if latest["intraday_win_rate"] >= 65: intra_pts += 12
     elif latest["intraday_win_rate"] >= 55: intra_pts += 8
     elif latest["intraday_win_rate"] >= 50: intra_pts += 4
     if latest["avg_intraday"] > 0.5: intra_pts += 8
     elif latest["avg_intraday"] > 0: intra_pts += 4
-    # Profit factor
     recent = df["intraday_return"].tail(20)
-    wins = recent[recent > 0]
-    losses = recent[recent < 0]
+    wins = recent[recent > 0]; losses = recent[recent < 0]
     if len(wins) > 0 and len(losses) > 0:
         pf = wins.mean() / abs(losses.mean())
         if pf >= 2.0: intra_pts += 15
@@ -272,25 +309,20 @@ def bpjs_score(df):
         elif pf >= 1.0: intra_pts += 5
     bd["Intraday Edge"] = intra_pts
 
-    # Range Expansion (20 pts) - FIX #9: filter arah bullish
     range_pts = 0
-    atr_now = latest["atr"]
     atr_avg = df["atr"].rolling(10).mean().iloc[-1]
-    is_bullish_candle = latest["Close"] > latest["Open"] or latest["dom_wave"] > 0
-    if is_bullish_candle:
-        if atr_now > atr_avg * 1.2: range_pts += 12
-        elif atr_now > atr_avg: range_pts += 6
+    if latest["Close"] > latest["Open"] or latest["dom_wave"] > 0:
+        if latest["atr"] > atr_avg * 1.2: range_pts += 12
+        elif latest["atr"] > atr_avg: range_pts += 6
     if latest["Volume"] > df["Volume"].rolling(20).mean().iloc[-1] * 1.3: range_pts += 8
     bd["Range Expansion"] = range_pts
 
-    # Momentum (25 pts)
     mom_pts = 0
     if latest["dom_wave"] > prev["dom_wave"]: mom_pts += 10
     if latest["dom_wave"] > 0: mom_pts += 5
     if 50 < latest["rsi"] < 70: mom_pts += 10
     bd["Momentum"] = mom_pts
 
-    # Trend Alignment (20 pts)
     trend_pts = 0
     if latest["Close"] > latest["ema20"] > latest["ema50"]: trend_pts += 12
     elif latest["Close"] > latest["ema20"]: trend_pts += 6
@@ -306,42 +338,6 @@ def grade_bsjp_bpjs(score):
     elif score >= 60: return "✅ VALID"
     elif score >= 50: return "⚠️ WATCH"
     return "❌ SKIP"
-    
-    # ──────────────────────────────────────────────────────────────────────────────
-# 4. AUL WAVE FILTER (4 Warna Gelombang)
-# ──────────────────────────────────────────────────────────────────────────────
-def check_aul_wave_filter(df, filters):
-    """
-    Filter berdasarkan 4 gelombang warna Aul Wave:
-    🔵 Biru   = vol_wave (volume flow)
-    🟡 Kuning = dom_wave (dominance/momentum)
-    🟣 Magenta = struct_wave (structure)
-    🟢 Hijau  = bull_score (composite)
-    """
-    if df is None or len(df) < 5: return False
-    latest, prev = df.iloc[-1], df.iloc[-2]
-
-    # 🔵 BIRU - Vol Wave
-    if filters["blue_enabled"]:
-        if latest["vol_wave"] < filters["blue_min"]: return False
-        if filters["blue_rising"] and not (latest["vol_wave"] > prev["vol_wave"]): return False
-
-    # 🟡 KUNING - Dom Wave
-    if filters["yellow_enabled"]:
-        if latest["dom_wave"] < filters["yellow_min"]: return False
-        if filters["yellow_rising"] and not (latest["dom_wave"] > prev["dom_wave"]): return False
-
-    # 🟣 MAGENTA - Struct Wave
-    if filters["magenta_enabled"]:
-        if not (filters["magenta_min"] <= latest["struct_wave"] <= filters["magenta_max"]): return False
-        if filters["magenta_rising"] and not (latest["struct_wave"] > prev["struct_wave"]): return False
-
-    # 🟢 HIJAU - Bull Score
-    if filters["green_enabled"]:
-        if latest["bull_score"] < filters["green_min"]: return False
-
-    return True
-
 # ──────────────────────────────────────────────────────────────────────────────
 # 5. AI PROMPT
 # ──────────────────────────────────────────────────────────────────────────────
@@ -350,38 +346,34 @@ def build_ai_prompt(ticker, df, conf_score, conf_bd, pattern, trade_plan, bsjp, 
     entry, sl, tp1, tp2, rr = trade_plan
     bs_score, _ = bsjp
     bp_score, _ = bpjs
+    conv = "🔥 MAX BUY" if latest["max_buy"] else ("🌅 CROSS UP" if latest["cross_up"] else 
+           ("🔻 MAX SELL" if latest["max_sell"] else ("🌇 CROSS DOWN" if latest["cross_down"] else "—")))
 
-    return f"""Anda adalah trader profesional. Analisis {ticker} berdasarkan DATA KONKRIT berikut:
+    return f"""Anda adalah trader profesional. Analisis {ticker} berdasarkan DATA KONKRIT:
 
-📊 PRICE ACTION:
-- Close: {latest['Close']:.2f} | Open: {latest['Open']:.2f} | High: {latest['High']:.2f} | Low: {latest['Low']:.2f}
-- Pattern: {pattern} | Close Position: {latest['close_position']*100:.1f}%
+📊 PRICE: Close {latest['Close']:.2f} | Pattern: {pattern} | Close Pos: {latest['close_position']*100:.1f}%
 
-🌊 AUL WAVE (4 Warna):
-- 🔵 Vol Wave: {latest['vol_wave']:.1f}
-- 🟡 Dom Wave: {latest['dom_wave']:.1f}
-- 🟣 Struct Wave: {latest['struct_wave']:.1f}
-- 🟢 Bull Score: {latest['bull_score']:.0f}/100
+🌊 AUL WAVE 4 GELOMBANG (Pine Script @yucuppucuy):
+- 🟡 Vol Wave (Kuning/Smart Money): {latest['vol_wave']:.1f}
+- 🔵 Trend Wave (Biru/TSI): {latest['trend_wave']:.1f}
+- 🟣 Dom Wave (Ungu/RSI Power): {latest['dom_wave']:.1f}
+- ⚪ Struct Wave (Putih/Position): {latest['struct_wave']:.1f}
+- 🎯 Konvergensi: {conv}
 
-📈 INDIKATOR:
-- RSI: {latest['rsi']:.1f} | ATR: {latest['atr']:.2f} | Inflow: {latest['inflow_ratio']:.2f}x
-- EMA20: {latest['ema20']:.2f} | EMA50: {latest['ema50']:.2f} | EMA200: {latest['ema200']:.2f}
+📈 INDIKATOR: RSI {latest['rsi']:.1f} | ATR {latest['atr']:.2f} | Inflow {latest['inflow_ratio']:.2f}x
+EMA20 {latest['ema20']:.2f} | EMA50 {latest['ema50']:.2f} | EMA200 {latest['ema200']:.2f}
 
-🎯 CONFLUENCE (Total: {conf_score}/100 → {grade_signal(conf_score)}):
-- Trend: {conf_bd.get('Trend',0)}/20 | Structure: {conf_bd.get('Structure',0)}/20
-- SmartMoney: {conf_bd.get('SmartMoney',0)}/25 | Momentum: {conf_bd.get('Momentum',0)}/20
-- PriceAction: {conf_bd.get('PriceAction',0)}/15
+🎯 CONFLUENCE ({conf_score}/100 → {grade_signal(conf_score)}):
+Trend {conf_bd.get('Trend',0)} | Struct {conf_bd.get('Structure',0)} | SmartMoney {conf_bd.get('SmartMoney',0)} | Mom {conf_bd.get('Momentum',0)} | PA {conf_bd.get('PriceAction',0)}
 
-⏰ INTRADAY:
-- BSJP: {bs_score}/100 → {grade_bsjp_bpjs(bs_score)} | Gap-Up Rate: {latest['gap_up_rate']:.0f}%
-- BPJS: {bp_score}/100 → {grade_bsjp_bpjs(bp_score)} | Intraday WR: {latest['intraday_win_rate']:.0f}%
+⏰ INTRADAY: BSJP {bs_score} ({grade_bsjp_bpjs(bs_score)}) | BPJS {bp_score} ({grade_bsjp_bpjs(bp_score)})
 
-💰 TRADE PLAN: Entry: {entry:.2f} | SL: {sl:.2f} | TP1: {tp1:.2f} | TP2: {tp2:.2f} | R:R = 1:{rr}
+💰 PLAN: Entry {entry:.2f} | SL {sl:.2f} | TP1 {tp1:.2f} | TP2 {tp2:.2f} | RR 1:{rr}
 
 INSTRUKSI:
-1. VERDICT (BUY / WAIT / AVOID) dengan alasan berbasis data.
-2. Highlight 2-3 confluence terkuat + 1-2 risk factor.
-3. Rekomendasi strategi: Swing vs Intraday (BSJP/BPJS) — pilih skor tertinggi.
+1. VERDICT (BUY/WAIT/AVOID) + alasan data.
+2. Highlight gelombang Aul Wave terkuat & terlemah.
+3. Rekomendasi: Swing vs BSJP vs BPJS (pilih skor tertinggi).
 4. Max 200 kata, bahasa Indonesia, padat & actionable."""
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -401,27 +393,23 @@ def scan_ticker(ticker, timeframe, market):
         pattern = detect_patterns(df)
         trade_plan = calc_trade_plan(latest)
 
+        conv = "MAX BUY" if latest["max_buy"] else ("CROSS UP" if latest["cross_up"] else 
+               ("MAX SELL" if latest["max_sell"] else ("CROSS DOWN" if latest["cross_down"] else "-")))
+
         return {
-            "Ticker": ticker,
-            "Symbol": symbol,
+            "Ticker": ticker, "Symbol": symbol,
             "Close": round(latest["Close"], 4),
             "RSI": round(latest["rsi"], 1),
-            "🔵 Vol": round(latest["vol_wave"], 1),
-            "🟡 Dom": round(latest["dom_wave"], 1),
-            "🟣 Struct": round(latest["struct_wave"], 1),
-            "🟢 Bull": int(latest["bull_score"]),
-            "Confluence": conf_score,
-            "Grade": grade_signal(conf_score),
-            "BSJP": bs_score,
-            "BSJP Grade": grade_bsjp_bpjs(bs_score),
-            "BPJS": bp_score,
-            "BPJS Grade": grade_bsjp_bpjs(bp_score),
-            "Pattern": pattern,
-            "Inflow": round(latest["inflow_ratio"], 2),
-            "_df": df,
-            "_conf_bd": conf_bd,
-            "_bs_bd": bs_bd,
-            "_bp_bd": bp_bd,
+            "🟡 Vol": round(latest["vol_wave"], 1),
+            "🔵 Trend": round(latest["trend_wave"], 1),
+            "🟣 Dom": round(latest["dom_wave"], 1),
+            "⚪ Struct": round(latest["struct_wave"], 1),
+            "Conv": conv,
+            "Confluence": conf_score, "Grade": grade_signal(conf_score),
+            "BSJP": bs_score, "BSJP Grade": grade_bsjp_bpjs(bs_score),
+            "BPJS": bp_score, "BPJS Grade": grade_bsjp_bpjs(bp_score),
+            "Pattern": pattern, "Inflow": round(latest["inflow_ratio"], 2),
+            "_df": df, "_conf_bd": conf_bd, "_bs_bd": bs_bd, "_bp_bd": bp_bd,
             "_trade_plan": trade_plan,
         }
     except Exception:
@@ -439,12 +427,8 @@ def run_scan(tickers, timeframe, market, thresholds, aul_filters, mode):
             try:
                 r = f.result(timeout=30)
                 if r:
-                    # Filter Aul Wave dulu (gate utama)
-                    if not check_aul_wave_filter(r["_df"], aul_filters): 
-                        progress.progress((i + 1) / total)
-                        continue
-
-                    # Filter mode
+                    if not check_aul_wave_filter(r["_df"], aul_filters):
+                        progress.progress((i + 1) / total); continue
                     passed = False
                     if mode == "Confluence" and r["Confluence"] >= thresholds["conf"]: passed = True
                     elif mode == "BSJP" and r["BSJP"] >= thresholds["bsjp"]: passed = True
@@ -453,27 +437,23 @@ def run_scan(tickers, timeframe, market, thresholds, aul_filters, mode):
                         if (r["Confluence"] >= thresholds["conf"] or 
                             r["BSJP"] >= thresholds["bsjp"] or 
                             r["BPJS"] >= thresholds["bpjs"]): passed = True
-                    elif mode == "Aul Wave Only":
-                        passed = True  # sudah lolos gate Aul Wave
-
+                    elif mode == "Aul Wave Only": passed = True
                     if passed: results.append(r)
-            except Exception:
-                pass
+            except Exception: pass
             progress.progress((i + 1) / total)
             status.text(f"Scanning {i+1}/{total}...")
 
-    progress.empty()
-    status.empty()
+    progress.empty(); status.empty()
     return results
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 7. CHART
+# 7. CHART — 4 Warna ASLI (Kuning/Biru/Ungu/Putih)
 # ──────────────────────────────────────────────────────────────────────────────
 def plot_chart(df, ticker, trade_plan):
     entry, sl, tp1, tp2, _ = trade_plan
     fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.03,
-                        row_heights=[0.55, 0.2, 0.25],
-                        subplot_titles=("Price + EMA", "RSI", "🌊 Aul Wave (4 Warna)"))
+                        row_heights=[0.5, 0.18, 0.32],
+                        subplot_titles=("Price + EMA", "RSI", "🌊 Aul Wave Predictive Trend Matrix"))
 
     fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"],
                                   low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
@@ -490,15 +470,26 @@ def plot_chart(df, ticker, trade_plan):
     fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
     fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
 
-    # 4 WARNA AUL WAVE
-    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="🔵 Vol Wave", line=dict(color="#3B82F6", width=2)), row=3, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["dom_wave"], name="🟡 Dom Wave", line=dict(color="#FACC15", width=2)), row=3, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="🟣 Struct Wave", line=dict(color="#D946EF", width=2)), row=3, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["bull_score"], name="🟢 Bull Score", line=dict(color="#22C55E", width=2, dash="dot")), row=3, col=1)
-    fig.add_hline(y=0, line_dash="dot", line_color="gray", row=3, col=1)
+    # 🌊 AUL WAVE — 4 Warna ASLI Pine Script
+    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="🟡 Vol (Kuning)",
+                              line=dict(color="#FFD600", width=2)), row=3, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["trend_wave"], name="🔵 Trend (Biru)",
+                              line=dict(color="#00BFFF", width=2)), row=3, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["dom_wave"], name="🟣 Dom (Ungu)",
+                              line=dict(color="#D500F9", width=2)), row=3, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="⚪ Struct (Putih)",
+                              line=dict(color="#FFFFFF", width=2)), row=3, col=1)
 
-    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V7.2",
-                       template="plotly_dark", height=850, xaxis_rangeslider_visible=False, showlegend=True)
+    # Zona horizontal sesuai Pine Script
+    fig.add_hline(y=80, line_color="rgba(0,100,0,0.5)", row=3, col=1, annotation_text="Super Bull")
+    fig.add_hline(y=40, line_dash="dash", line_color="rgba(0,255,0,0.3)", row=3, col=1)
+    fig.add_hline(y=0, line_dash="dot", line_color="gray", row=3, col=1)
+    fig.add_hline(y=-40, line_dash="dash", line_color="rgba(255,0,0,0.3)", row=3, col=1)
+    fig.add_hline(y=-80, line_color="rgba(139,0,0,0.5)", row=3, col=1, annotation_text="Super Bear")
+
+    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V7.3",
+                       template="plotly_dark", height=900, xaxis_rangeslider_visible=False, showlegend=True,
+                       paper_bgcolor="#0a0a0a", plot_bgcolor="#0a0a0a")
     return fig
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -506,53 +497,68 @@ def plot_chart(df, ticker, trade_plan):
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
     init_state()
-    st.title("🌊 Aulsome Matrix Pro V7.2")
-    st.caption("Aul Wave 4-Color Filter + Confluence + BSJP/BPJS Engine")
+    st.title("🌊 Aulsome Matrix Pro V7.3")
+    st.caption("Aul Wave Predictive Trend Matrix (Pine Script Original) + Confluence + BSJP/BPJS")
 
     with st.sidebar:
         st.header("⚙️ Configuration")
         market = st.selectbox("Market", ["IHSG", "Crypto"])
         timeframe = st.selectbox("Timeframe", ["1d", "4h", "1h", "15m"], index=0)
-        mode = st.radio("Scan Mode", 
-                        ["Confluence", "BSJP", "BPJS", "ALL", "Aul Wave Only"], 
-                        index=0,
-                        help="Aul Wave Only = filter murni 4 warna, tanpa confluence/BSJP/BPJS")
+        mode = st.radio("Scan Mode", ["Confluence", "BSJP", "BPJS", "ALL", "Aul Wave Only"], index=0)
 
         st.markdown("---")
-        # ═══════════════════════════════════════════════════════════════
-        # 🌊 AUL WAVE FILTER (4 Warna Gelombang)
-        # ═══════════════════════════════════════════════════════════════
-        st.subheader("🌊 Aul Wave Filter")
-        st.caption("Filter berdasarkan 4 gelombang warna")
+        st.subheader("🌊 Aul Wave Filter (4 Gelombang)")
+        st.caption("Filter dengan range MIN-MAX sesuai Pine Script asli")
 
-        with st.expander("🔵 Vol Wave (Volume Flow)", expanded=False):
-            blue_enabled = st.checkbox("Aktifkan 🔵", value=False, key="b_en")
-            blue_min = st.slider("Min Vol Wave", -50, 50, 0, 5, key="b_min")
-            blue_rising = st.checkbox("Harus naik (rising)", value=True, key="b_ris")
-
-        with st.expander("🟡 Dom Wave (Momentum)", expanded=False):
+        # ═══════════════════════════════════════════════════════════
+        # 🟡 KUNING - Vol Wave (Smart Money / Chaikin Money Flow)
+        # ═══════════════════════════════════════════════════════════
+        with st.expander("🟡 Vol Wave - Kuning (Smart Money)", expanded=False):
             yellow_enabled = st.checkbox("Aktifkan 🟡", value=False, key="y_en")
-            yellow_min = st.slider("Min Dom Wave", -50, 50, 0, 5, key="y_min")
-            yellow_rising = st.checkbox("Harus naik (rising)", value=True, key="y_ris")
+            yellow_min, yellow_max = st.slider("Range Vol Wave", -100, 100, (0, 100), 5, key="y_range")
+            yellow_rising = st.checkbox("Harus rising (naik)", value=False, key="y_ris")
 
-        with st.expander("🟣 Struct Wave (Position)", expanded=False):
-            magenta_enabled = st.checkbox("Aktifkan 🟣", value=False, key="m_en")
-            magenta_min, magenta_max = st.slider("Range Struct Wave", -100, 100, (-60, 20), 5, key="m_range")
-            magenta_rising = st.checkbox("Harus naik (rising)", value=True, key="m_ris")
+        # ═══════════════════════════════════════════════════════════
+        # 🔵 BIRU - Trend Wave (TSI)
+        # ═══════════════════════════════════════════════════════════
+        with st.expander("🔵 Trend Wave - Biru (TSI Velocity)", expanded=False):
+            blue_enabled = st.checkbox("Aktifkan 🔵", value=False, key="b_en")
+            blue_min, blue_max = st.slider("Range Trend Wave", -100, 100, (0, 100), 5, key="b_range")
+            blue_rising = st.checkbox("Harus rising (naik)", value=False, key="b_ris")
 
-        with st.expander("🟢 Bull Score (Composite)", expanded=False):
-            green_enabled = st.checkbox("Aktifkan 🟢", value=False, key="g_en")
-            green_min = st.slider("Min Bull Score", 0, 100, 60, 5, key="g_min")
+        # ═══════════════════════════════════════════════════════════
+        # 🟣 UNGU - Dom Wave (Bull/Bear Dominance)
+        # ═══════════════════════════════════════════════════════════
+        with st.expander("🟣 Dom Wave - Ungu (Dominance)", expanded=False):
+            purple_enabled = st.checkbox("Aktifkan 🟣", value=False, key="p_en")
+            purple_min, purple_max = st.slider("Range Dom Wave", -100, 100, (0, 100), 5, key="p_range")
+            purple_rising = st.checkbox("Harus rising (naik)", value=False, key="p_ris")
+
+        # ═══════════════════════════════════════════════════════════
+        # ⚪ PUTIH - Struct Wave (Price Structure)
+        # ═══════════════════════════════════════════════════════════
+        with st.expander("⚪ Struct Wave - Putih (Price Structure)", expanded=False):
+            white_enabled = st.checkbox("Aktifkan ⚪", value=False, key="w_en")
+            white_min, white_max = st.slider("Range Struct Wave", -100, 100, (-50, 50), 5, key="w_range")
+            white_rising = st.checkbox("Harus rising (naik)", value=False, key="w_ris")
+
+        # ═══════════════════════════════════════════════════════════
+        # 🎯 Konvergensi (Pertemuan 4 Garis)
+        # ═══════════════════════════════════════════════════════════
+        with st.expander("🎯 Konvergensi (Pertemuan 4 Garis)", expanded=False):
+            require_cross_up = st.checkbox("⬆️ Wajib All Cross Up (semua >0)", value=False, key="cu")
+            require_max_buy = st.checkbox("🔥 Wajib MAX BUY (semua >80)", value=False, key="mb")
 
         aul_filters = {
-            "blue_enabled": blue_enabled, "blue_min": blue_min, "blue_rising": blue_rising,
-            "yellow_enabled": yellow_enabled, "yellow_min": yellow_min, "yellow_rising": yellow_rising,
-            "magenta_enabled": magenta_enabled, "magenta_min": magenta_min, "magenta_max": magenta_max, "magenta_rising": magenta_rising,
-            "green_enabled": green_enabled, "green_min": green_min,
+            "yellow_enabled": yellow_enabled, "yellow_min": yellow_min, "yellow_max": yellow_max, "yellow_rising": yellow_rising,
+            "blue_enabled": blue_enabled, "blue_min": blue_min, "blue_max": blue_max, "blue_rising": blue_rising,
+            "purple_enabled": purple_enabled, "purple_min": purple_min, "purple_max": purple_max, "purple_rising": purple_rising,
+            "white_enabled": white_enabled, "white_min": white_min, "white_max": white_max, "white_rising": white_rising,
+            "require_cross_up": require_cross_up, "require_max_buy": require_max_buy,
         }
-        active_waves = sum([blue_enabled, yellow_enabled, magenta_enabled, green_enabled])
-        if active_waves > 0:
-            st.success(f"🌊 {active_waves}/4 gelombang aktif")
+        active = sum([yellow_enabled, blue_enabled, purple_enabled, white_enabled])
+        if active > 0: st.success(f"🌊 {active}/4 gelombang aktif")
+        if require_max_buy: st.warning("🔥 Mode MAX BUY aktif (sangat ketat)")
 
         st.markdown("---")
         st.subheader("🎯 Score Thresholds")
@@ -578,41 +584,41 @@ def main():
     if st.session_state["scan_triggered"]:
         results = st.session_state["results"]
         if not results:
-            st.warning("❌ Tidak ada ticker yang lolos filter. Coba longgarkan threshold atau matikan beberapa gelombang.")
+            st.warning("❌ Tidak ada ticker yang lolos. Longgarkan range filter Aul Wave atau threshold.")
             return
 
-        sort_map = {"Confluence": "Confluence", "BSJP": "BSJP", "BPJS": "BPJS", 
-                    "ALL": "Confluence", "Aul Wave Only": "🟢 Bull"}
+        sort_map = {"Confluence": "Confluence", "BSJP": "BSJP", "BPJS": "BPJS",
+                    "ALL": "Confluence", "Aul Wave Only": "🟡 Vol"}
         sort_key = sort_map[st.session_state["scan_mode"]]
         results = sorted(results, key=lambda x: x[sort_key], reverse=True)
 
-        st.success(f"✅ {len(results)} ticker lolos | Mode: **{st.session_state['scan_mode']}** | Last scan: {st.session_state['last_scan_time']}")
+        st.success(f"✅ {len(results)} lolos | Mode: **{st.session_state['scan_mode']}** | Scan: {st.session_state['last_scan_time']}")
 
         df_display = pd.DataFrame([{k: v for k, v in r.items() if not k.startswith("_")} for r in results])
 
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Total", len(results))
-        c2.metric("🔥 Sniper (≥85)", sum(1 for r in results if r["Confluence"] >= 85))
+        c2.metric("🔥 Sniper", sum(1 for r in results if r["Confluence"] >= 85))
         c3.metric("🌅 BSJP Prime", sum(1 for r in results if r["BSJP"] >= 80))
         c4.metric("🌇 BPJS Prime", sum(1 for r in results if r["BPJS"] >= 80))
-        c5.metric("🟢 Bull ≥80", sum(1 for r in results if r["🟢 Bull"] >= 80))
+        c5.metric("🎯 MAX BUY", sum(1 for r in results if r["Conv"] == "MAX BUY"))
 
         st.dataframe(df_display, use_container_width=True, height=400)
-        st.download_button("📥 Download CSV", df_display.to_csv(index=False), 
-                          f"aulsome_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
+        st.download_button("📥 Download CSV", df_display.to_csv(index=False),
+                           f"aulsome_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
 
         st.markdown("---")
         st.subheader("🔬 Deep Analysis")
         selected = st.selectbox("Pilih Ticker", [r["Ticker"] for r in results])
         sel = next(r for r in results if r["Ticker"] == selected)
 
-        # Aul Wave Mini Dashboard
-        st.markdown("#### 🌊 Aul Wave Status")
-        w1, w2, w3, w4 = st.columns(4)
-        w1.metric("🔵 Vol Wave", f"{sel['🔵 Vol']}")
-        w2.metric("🟡 Dom Wave", f"{sel['🟡 Dom']}")
-        w3.metric("🟣 Struct Wave", f"{sel['🟣 Struct']}")
-        w4.metric("🟢 Bull Score", f"{sel['🟢 Bull']}/100")
+        st.markdown("#### 🌊 Aul Wave Status (4 Gelombang Asli)")
+        w1, w2, w3, w4, w5 = st.columns(5)
+        w1.metric("🟡 Vol (Kuning)", f"{sel['🟡 Vol']}")
+        w2.metric("🔵 Trend (Biru)", f"{sel['🔵 Trend']}")
+        w3.metric("🟣 Dom (Ungu)", f"{sel['🟣 Dom']}")
+        w4.metric("⚪ Struct (Putih)", f"{sel['⚪ Struct']}")
+        w5.metric("🎯 Konvergensi", sel["Conv"])
 
         st.markdown("#### 📊 Strategy Scores")
         cA, cB, cC = st.columns(3)
@@ -620,15 +626,12 @@ def main():
         cB.metric("🌅 BSJP", f"{sel['BSJP']}/100", sel["BSJP Grade"])
         cC.metric("🌇 BPJS", f"{sel['BPJS']}/100", sel["BPJS Grade"])
 
-        with st.expander("📊 Confluence Breakdown"):
-            st.json(sel["_conf_bd"])
-        with st.expander("🌅 BSJP Breakdown"):
-            st.json(sel["_bs_bd"])
-        with st.expander("🌇 BPJS Breakdown"):
-            st.json(sel["_bp_bd"])
+        with st.expander("📊 Confluence Breakdown"): st.json(sel["_conf_bd"])
+        with st.expander("🌅 BSJP Breakdown"): st.json(sel["_bs_bd"])
+        with st.expander("🌇 BPJS Breakdown"): st.json(sel["_bp_bd"])
 
         entry, sl, tp1, tp2, rr = sel["_trade_plan"]
-        st.info(f"💰 **Trade Plan** — Entry: `{entry:.4f}` | SL: `{sl:.4f}` | TP1: `{tp1:.4f}` | TP2: `{tp2:.4f}` | R:R = `1:{rr}`")
+        st.info(f"💰 **Trade Plan** — Entry `{entry:.4f}` | SL `{sl:.4f}` | TP1 `{tp1:.4f}` | TP2 `{tp2:.4f}` | RR 1:{rr}")
 
         st.plotly_chart(plot_chart(sel["_df"], sel["Ticker"], sel["_trade_plan"]), use_container_width=True)
 
@@ -641,22 +644,20 @@ def main():
             else:
                 with st.spinner("AI sedang menganalisis..."):
                     try:
-                        prompt = build_ai_prompt(
-                            sel["Ticker"], sel["_df"], sel["Confluence"], sel["_conf_bd"],
-                            sel["Pattern"], sel["_trade_plan"],
-                            (sel["BSJP"], sel["_bs_bd"]), (sel["BPJS"], sel["_bp_bd"])
-                        )
+                        prompt = build_ai_prompt(sel["Ticker"], sel["_df"], sel["Confluence"], sel["_conf_bd"],
+                                                  sel["Pattern"], sel["_trade_plan"],
+                                                  (sel["BSJP"], sel["_bs_bd"]), (sel["BPJS"], sel["_bp_bd"]))
                         resp = client.chat.completions.create(
                             model="llama-3.3-70b-versatile",
                             messages=[{"role": "user", "content": prompt}],
-                            temperature=0.3,
-                            max_tokens=600,
-                        )
+                            temperature=0.3, max_tokens=600)
                         st.markdown(resp.choices[0].message.content)
                     except Exception as e:
                         st.error(f"AI error: {e}")
     else:
-        st.info("👈 Aktifkan gelombang Aul Wave + atur threshold di sidebar, lalu klik **RUN SCAN**.")
+        st.info("👈 Atur range MIN-MAX gelombang Aul Wave di sidebar, lalu klik **RUN SCAN**.")
 
 if __name__ == "__main__":
     main()
+    
+    
