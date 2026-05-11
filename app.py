@@ -16,7 +16,7 @@ from datetime import datetime
 # 1. CONFIG & UNIVERSE
 # ──────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Aulsome Matrix Pro V7.0",
+    page_title="Aulsome Matrix Pro V7.1",
     page_icon="🏆",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -64,7 +64,6 @@ def compute_technicals(df):
         df["rsi"] = ta.momentum.RSIIndicator(df["Close"]).rsi()
         df["atr"] = ta.volatility.AverageTrueRange(df["High"], df["Low"], df["Close"], window=14).average_true_range()
 
-        # Wave Matrix Core
         hl = (df["High"] - df["Low"]).replace(0, 0.001)
         mf_vol = (((df["Close"] - df["Low"]) - (df["High"] - df["Close"])) / hl) * df["Volume"]
         df["vol_wave"] = (mf_vol.rolling(20).mean() / df["Volume"].rolling(20).mean().replace(0, 0.001) * 100).ewm(span=5).mean()
@@ -72,18 +71,32 @@ def compute_technicals(df):
         hh, ll = df["High"].rolling(20).max(), df["Low"].rolling(20).min()
         df["struct_wave"] = pandas_wma(((df["Close"] - ll) / (hh - ll).replace(0, 0.001)) * 200 - 100, 8)
 
-        # Inflow
         df["value_now_m"] = (df["Close"] * df["Volume"]) / 1e6
         df["value_ma20"] = df["value_now_m"].rolling(20).mean()
         df["inflow_ratio"] = df["value_now_m"] / df["value_ma20"].replace(0, 0.001)
 
-        # Bull Score (VECTORIZED)
         df["bull_score"] = (
             (df["vol_wave"] > 0).astype(int) * 25 +
             (df["dom_wave"] > 0).astype(int) * 20 +
             (df["inflow_ratio"] > 1.1).astype(int) * 25 +
             (df["struct_wave"] > -50).astype(int) * 30
         ).clip(upper=100)
+
+        # ─── BSJP / BPJS metrics ───
+        # Close position dalam daily range (0-1, makin tinggi = makin kuat closing)
+        df["close_position"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"]).replace(0, 0.001)
+        # Open position dalam previous daily range
+        df["gap_pct"] = (df["Open"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100
+        # Intraday return (open → close)
+        df["intraday_return"] = (df["Close"] - df["Open"]) / df["Open"] * 100
+        # Overnight return (prev close → today open)
+        df["overnight_return"] = (df["Open"] - df["Close"].shift(1)) / df["Close"].shift(1) * 100
+
+        # Historical hit rate (rolling 20 days)
+        df["gap_up_rate"] = (df["overnight_return"] > 0).rolling(20).mean() * 100      # BSJP edge
+        df["intraday_win_rate"] = (df["intraday_return"] > 0).rolling(20).mean() * 100  # BPJS edge
+        df["avg_overnight"] = df["overnight_return"].rolling(20).mean()                 # avg gap up
+        df["avg_intraday"] = df["intraday_return"].rolling(20).mean()                   # avg intraday
 
         return df.dropna()
     except Exception:
@@ -98,53 +111,41 @@ def detect_patterns(df):
     upper_shadow_c = c["High"] - max(c["Close"], c["Open"])
     lower_shadow_c = min(c["Close"], c["Open"]) - c["Low"]
 
-    # Morning Star
     if (p2["Close"] < p2["Open"]) and (abs(p["Close"] - p["Open"]) <= range_p * 0.3) \
        and (c["Close"] > c["Open"]) and (c["Close"] >= (p2["Open"] + p2["Close"]) / 2):
         return "Morning Star"
-    # Bullish Engulfing
     if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Close"] >= p["Open"] and c["Open"] <= p["Close"]:
         return "Bullish Engulfing"
-    # Bullish Harami
     if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Low"] > p["Low"] and c["High"] < p["High"]:
         return "Bullish Harami"
-    # Tweezer Bottom
     if p["Close"] < p["Open"] and c["Close"] > c["Open"] and abs(c["Low"] - p["Low"]) <= (range_c * 0.05):
         return "Tweezer Bottom"
-    # Dragonfly Doji
     if body_c <= range_c * 0.1 and upper_shadow_c <= range_c * 0.1 and c["Low"] < min(c["Close"], c["Open"]):
         return "Dragonfly Doji"
-    # Hammer
     if lower_shadow_c > 2 * body_c and (c["rsi"] < 40 or (c["Close"] > c["Open"] and upper_shadow_c <= body_c * 0.2)):
         return "Hammer"
     return "Neutral"
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 3. 🏆 ULTIMATE CONFLUENCE ENGINE
+# 3. CONFLUENCE & BSJP/BPJS ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 def ultimate_confluence_score(df):
-    """5-Pillar Confluence Scoring (0-100). Target: 80%+ Winrate."""
-    if df is None or len(df) < 200:
-        return 0, {}
-
+    if df is None or len(df) < 200: return 0, {}
     latest, prev, prev2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]
     breakdown = {}
 
-    # ─── PILAR 1: TREND CONTEXT (20 pts) ───
     trend_pts = 0
     if latest["ema50"] > latest["ema200"]: trend_pts += 10
     if latest["Close"] > latest["ema50"]: trend_pts += 5
     if latest["ema20"] > latest["ema50"]: trend_pts += 5
     breakdown["Trend"] = trend_pts
 
-    # ─── PILAR 2: STRUCTURE BOTTOMING (20 pts) ───
     struct_pts = 0
     if latest["struct_wave"] <= -70: struct_pts += 12
     elif latest["struct_wave"] <= -50: struct_pts += 6
     if latest["struct_wave"] > prev["struct_wave"]: struct_pts += 8
     breakdown["Structure"] = struct_pts
 
-    # ─── PILAR 3: SMART MONEY FLOW (25 pts) ───
     flow_pts = 0
     if latest["vol_wave"] > prev["vol_wave"] > prev2["vol_wave"]: flow_pts += 10
     if latest["vol_wave"] > 0: flow_pts += 5
@@ -152,14 +153,12 @@ def ultimate_confluence_score(df):
     elif latest["inflow_ratio"] >= 1.2: flow_pts += 5
     breakdown["SmartMoney"] = flow_pts
 
-    # ─── PILAR 4: MOMENTUM SHIFT (20 pts) ───
     mom_pts = 0
     if latest["dom_wave"] > prev["dom_wave"]: mom_pts += 8
     if 30 < latest["rsi"] < 65: mom_pts += 6
     if prev["rsi"] < 35 and latest["rsi"] > prev["rsi"]: mom_pts += 6
     breakdown["Momentum"] = mom_pts
 
-    # ─── PILAR 5: PRICE ACTION TRIGGER (15 pts) ───
     pa_pts = 0
     pattern = detect_patterns(df)
     if pattern in ["Morning Star", "Bullish Engulfing"]: pa_pts += 10
@@ -169,8 +168,7 @@ def ultimate_confluence_score(df):
     if latest["Volume"] > vol_avg * 1.5: pa_pts += 5
     breakdown["PriceAction"] = pa_pts
 
-    total = trend_pts + struct_pts + flow_pts + mom_pts + pa_pts
-    return total, breakdown
+    return trend_pts + struct_pts + flow_pts + mom_pts + pa_pts, breakdown
 
 def grade_signal(score):
     if score >= 85: return "🔥 SNIPER"
@@ -180,7 +178,6 @@ def grade_signal(score):
     return "❌ SKIP"
 
 def calc_trade_plan(latest):
-    """ATR-based Entry, SL, TP."""
     entry = latest["Close"]
     atr = latest["atr"]
     sl = entry - (atr * 1.5)
@@ -188,6 +185,104 @@ def calc_trade_plan(latest):
     tp2 = entry + (atr * 4.0)
     rr = round((tp1 - entry) / (entry - sl), 2) if (entry - sl) > 0 else 0
     return entry, sl, tp1, tp2, rr
+
+# ─── BSJP: Beli Sore Jual Pagi ───
+def bsjp_score(df):
+    """Score 0-100 untuk strategi Beli Sore Jual Pagi."""
+    if df is None or len(df) < 30: return 0, {}
+    latest, prev = df.iloc[-1], df.iloc[-2]
+    bd = {}
+    score = 0
+
+    # 1. Strong closing (30 pts) — candle ditutup di area atas
+    if latest["close_position"] >= 0.8: score += 20
+    elif latest["close_position"] >= 0.65: score += 12
+    if latest["Close"] > latest["Open"]: score += 10
+    bd["Closing Strength"] = score
+
+    # 2. Historical gap-up edge (25 pts)
+    gap_pts = 0
+    if latest["gap_up_rate"] >= 65: gap_pts += 15
+    elif latest["gap_up_rate"] >= 55: gap_pts += 10
+    elif latest["gap_up_rate"] >= 50: gap_pts += 5
+    if latest["avg_overnight"] > 0.3: gap_pts += 10
+    elif latest["avg_overnight"] > 0: gap_pts += 5
+    bd["Gap-Up Edge"] = gap_pts
+    score += gap_pts
+
+    # 3. Late-day accumulation (25 pts)
+    acc_pts = 0
+    if latest["vol_wave"] > prev["vol_wave"]: acc_pts += 10
+    if latest["inflow_ratio"] >= 1.3: acc_pts += 10
+    elif latest["inflow_ratio"] >= 1.1: acc_pts += 5
+    if latest["vol_wave"] > 0: acc_pts += 5
+    bd["Accumulation"] = acc_pts
+    score += acc_pts
+
+    # 4. Trend & momentum support (20 pts)
+    trend_pts = 0
+    if latest["Close"] > latest["ema20"]: trend_pts += 5
+    if latest["ema20"] > latest["ema50"]: trend_pts += 5
+    if latest["dom_wave"] > 0: trend_pts += 5
+    if 40 < latest["rsi"] < 70: trend_pts += 5
+    bd["Trend Support"] = trend_pts
+    score += trend_pts
+
+    return min(score, 100), bd
+
+# ─── BPJS: Beli Pagi Jual Sore ───
+def bpjs_score(df):
+    """Score 0-100 untuk strategi Beli Pagi Jual Sore."""
+    if df is None or len(df) < 30: return 0, {}
+    latest, prev = df.iloc[-1], df.iloc[-2]
+    bd = {}
+    score = 0
+
+    # 1. Intraday bullish edge (30 pts)
+    intra_pts = 0
+    if latest["intraday_win_rate"] >= 65: intra_pts += 18
+    elif latest["intraday_win_rate"] >= 55: intra_pts += 12
+    elif latest["intraday_win_rate"] >= 50: intra_pts += 6
+    if latest["avg_intraday"] > 0.5: intra_pts += 12
+    elif latest["avg_intraday"] > 0: intra_pts += 6
+    bd["Intraday Edge"] = intra_pts
+    score += intra_pts
+
+    # 2. Range expansion (20 pts) — volatilitas naik = peluang besar
+    range_pts = 0
+    atr_now = latest["atr"]
+    atr_avg = df["atr"].rolling(10).mean().iloc[-1]
+    if atr_now > atr_avg * 1.2: range_pts += 12
+    elif atr_now > atr_avg: range_pts += 6
+    if latest["Volume"] > df["Volume"].rolling(20).mean().iloc[-1] * 1.3: range_pts += 8
+    bd["Range Expansion"] = range_pts
+    score += range_pts
+
+    # 3. Momentum thrust (25 pts)
+    mom_pts = 0
+    if latest["dom_wave"] > prev["dom_wave"]: mom_pts += 10
+    if latest["dom_wave"] > 0: mom_pts += 5
+    if latest["rsi"] > 50 and latest["rsi"] < 70: mom_pts += 10
+    bd["Momentum"] = mom_pts
+    score += mom_pts
+
+    # 4. Trend alignment (25 pts)
+    trend_pts = 0
+    if latest["Close"] > latest["ema20"] > latest["ema50"]: trend_pts += 15
+    elif latest["Close"] > latest["ema20"]: trend_pts += 8
+    if latest["inflow_ratio"] >= 1.2: trend_pts += 10
+    elif latest["inflow_ratio"] >= 1.0: trend_pts += 5
+    bd["Trend Alignment"] = trend_pts
+    score += trend_pts
+
+    return min(score, 100), bd
+
+def grade_bsjp_bpjs(score):
+    if score >= 80: return "🔥 PRIME"
+    elif score >= 70: return "💎 STRONG"
+    elif score >= 60: return "✅ VALID"
+    elif score >= 50: return "⚠️ WATCH"
+    return "❌ SKIP"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 4. AI PROMPT
@@ -215,24 +310,24 @@ Tugas Anda memberikan analisis objektif untuk {asset} ({timeframe}).
 
 {confluence_section}
 
-DEFINISI INDIKATOR MATRIX:
+DEFINISI INDIKATOR:
 - struct_wave (Putih): Market Structure. <= -80 jenuh jual, >= 80 jenuh beli.
-- vol_wave (Kuning): Volume Flow / Akumulasi Bandar. > 0 akumulasi, < 0 distribusi.
+- vol_wave (Kuning): Volume Flow / Akumulasi Bandar.
 - dom_wave (Ungu): Momentum Buyer vs Seller.
-- inflow_ratio: > 1.0 uang besar masuk melebihi rata-rata.
+- inflow_ratio: > 1.0 uang besar masuk.
 
 DATA MARKET (Last 30 Periods):
 {data_str}
 
-INSTRUKSI ANALISIS:
-1. MARKET STRUCTURE: Uptrend/Downtrend/Sideways berdasarkan EMA stacking?
-2. MOMENTUM & FLOW: Interaksi vol_wave dan inflow_ratio?
-3. CONFLUENCE VALIDATION: Apakah confluence score di atas valid berdasarkan price action terbaru?
-4. ELLIOTT WAVE: Hipotesis fase Wave saat ini.
-5. VERDICT: [SUPER YAHUD / YAHUD / WATCHLIST / WEAK / SKIP].
-6. TRADING PLAN: Entry, SL, TP1, TP2 dengan Risk/Reward jelas.
+INSTRUKSI:
+1. MARKET STRUCTURE & EMA stacking
+2. MOMENTUM & FLOW analysis
+3. CONFLUENCE VALIDATION
+4. ELLIOTT WAVE hipotesis
+5. VERDICT: [SUPER YAHUD / YAHUD / WATCHLIST / WEAK / SKIP]
+6. TRADING PLAN: Entry, SL, TP1, TP2, R:R
 
-Gunakan Markdown profesional. Evidence-based, hindari bahasa umum.
+Format Markdown profesional, evidence-based.
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -240,8 +335,8 @@ Gunakan Markdown profesional. Evidence-based, hindari bahasa umum.
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
     init_state()
-    st.title("🏆 Aulsome Matrix Pro V7.0")
-    st.caption("Ultimate Confluence Edition — Built for 80%+ Winrate Hunters")
+    st.title("🏆 Aulsome Matrix Pro V7.1")
+    st.caption("Ultimate Confluence + BSJP/BPJS Edition")
 
     with st.sidebar:
         st.header("🎯 Strategy Panel")
@@ -251,6 +346,8 @@ def main():
         st.markdown("---")
         mode = st.selectbox("Metode Screening", [
             "🏆 Ultimate Confluence (Pro)",
+            "🌅 BSJP — Beli Sore Jual Pagi",
+            "🌇 BPJS — Beli Pagi Jual Sore",
             "Wave Matrix 🌊",
             "Candlestick Pattern 🕯️",
             "Inflow Detector 💰",
@@ -262,6 +359,16 @@ def main():
         if mode == "🏆 Ultimate Confluence (Pro)":
             min_score = st.slider("Min Confluence Score", 50, 95, 75)
             st.caption("💡 65+ Strong | 75+ Ultimate | 85+ Sniper")
+        elif mode == "🌅 BSJP — Beli Sore Jual Pagi":
+            min_score = st.slider("Min BSJP Score", 50, 95, 70)
+            st.caption("🌅 Entry closing, exit opening besok | 60+ Valid | 70+ Strong | 80+ Prime")
+            if market == "Crypto":
+                st.warning("⚠️ BSJP/BPJS dirancang untuk saham IHSG (sesi jelas). Crypto 24/7 — gunakan dengan hati-hati.")
+        elif mode == "🌇 BPJS — Beli Pagi Jual Sore":
+            min_score = st.slider("Min BPJS Score", 50, 95, 70)
+            st.caption("🌇 Entry opening, exit closing | 60+ Valid | 70+ Strong | 80+ Prime")
+            if market == "Crypto":
+                st.warning("⚠️ BSJP/BPJS dirancang untuk saham IHSG. Crypto 24/7 — gunakan dengan hati-hati.")
         elif mode == "Wave Matrix 🌊":
             strategy = st.selectbox("Signal", ["Bullish Reversal (Bottoming)", "Bearish Reversal (Topping)", "Bullish Continuation", "Bearish Continuation"])
             wave_threshold = st.slider("White Threshold", -100, 100, -80 if "Bullish" in strategy else 80)
@@ -286,11 +393,14 @@ def main():
         tickers_raw = (IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA).split()
         tickers = [f"{t.strip()}{suffix}" for t in tickers_raw if t.strip()]
 
+        # Force daily timeframe for BSJP/BPJS
+        effective_tf = "1d" if mode in ["🌅 BSJP — Beli Sore Jual Pagi", "🌇 BPJS — Beli Pagi Jual Sore"] else timeframe
+
         results = []
         prog = st.progress(0)
 
         def process_ticker(t):
-            df = compute_technicals(fetch_data(t, timeframe))
+            df = compute_technicals(fetch_data(t, effective_tf))
             if df is None: return None
             latest, prev = df.iloc[-1], df.iloc[-2]
             if latest["value_now_m"] < min_turnover: return None
@@ -305,19 +415,52 @@ def main():
                 if matched:
                     entry, sl, tp1, tp2, rr = calc_trade_plan(latest)
                     extra = {
-                        "Confluence": score,
-                        "Grade": grade_signal(score),
-                        "Trend": breakdown["Trend"],
-                        "Struct": breakdown["Structure"],
-                        "SmartMoney": breakdown["SmartMoney"],
-                        "Momentum": breakdown["Momentum"],
+                        "Confluence": score, "Grade": grade_signal(score),
+                        "Trend": breakdown["Trend"], "Struct": breakdown["Structure"],
+                        "SmartMoney": breakdown["SmartMoney"], "Momentum": breakdown["Momentum"],
                         "PriceAction": breakdown["PriceAction"],
-                        "Entry": round(entry, 4),
-                        "SL": round(sl, 4),
-                        "TP1": round(tp1, 4),
-                        "TP2": round(tp2, 4),
-                        "R:R": rr
+                        "Entry": round(entry, 4), "SL": round(sl, 4),
+                        "TP1": round(tp1, 4), "TP2": round(tp2, 4), "R:R": rr
                     }
+
+            elif mode == "🌅 BSJP — Beli Sore Jual Pagi":
+                score, bd = bsjp_score(df)
+                matched = score >= min_score
+                if matched:
+                    target_pct = max(latest["avg_overnight"], 0.5)
+                    extra = {
+                        "BSJP Score": score, "Grade": grade_bsjp_bpjs(score),
+                        "ClosingPos": f"{latest['close_position']*100:.0f}%",
+                        "GapUpRate": f"{latest['gap_up_rate']:.0f}%",
+                        "AvgOvernight": f"{latest['avg_overnight']:.2f}%",
+                        "BuyClose": round(latest["Close"], 4),
+                        "TargetOpen": round(latest["Close"] * (1 + target_pct/100), 4),
+                        "ExpectedGain%": round(target_pct, 2),
+                        "ClosingStr": bd["Closing Strength"],
+                        "GapEdge": bd["Gap-Up Edge"],
+                        "Accum": bd["Accumulation"],
+                    }
+
+            elif mode == "🌇 BPJS — Beli Pagi Jual Sore":
+                score, bd = bpjs_score(df)
+                matched = score >= min_score
+                if matched:
+                    target_pct = max(latest["avg_intraday"], 0.8)
+                    # Estimasi entry = open hari ini, atau close kemarin sebagai proxy
+                    est_entry = latest["Close"]  # akan entry di open besok
+                    extra = {
+                        "BPJS Score": score, "Grade": grade_bsjp_bpjs(score),
+                        "IntradayWR": f"{latest['intraday_win_rate']:.0f}%",
+                        "AvgIntraday": f"{latest['avg_intraday']:.2f}%",
+                        "ATR": round(latest["atr"], 4),
+                        "EstEntry": round(est_entry, 4),
+                        "TargetClose": round(est_entry * (1 + target_pct/100), 4),
+                        "ExpectedGain%": round(target_pct, 2),
+                        "IntraEdge": bd["Intraday Edge"],
+                        "RangeExp": bd["Range Expansion"],
+                        "Momentum": bd["Momentum"],
+                    }
+
             elif mode == "Wave Matrix 🌊":
                 if strategy == "Bullish Reversal (Bottoming)":
                     matched = latest["struct_wave"] <= wave_threshold and (latest["dom_wave"] > prev["dom_wave"] or latest["vol_wave"] > prev["vol_wave"])
@@ -334,7 +477,6 @@ def main():
             elif mode == "Sniper Filter 🎯":
                 matched = latest["Volume"] > (df["Volume"].rolling(20).mean().iloc[-1] * 1.3) and pattern != "Neutral"
 
-            # Trend filter (skip for bearish strategies)
             if use_trend and "Bearish" not in str(strategy) and latest["Close"] < latest["ema200"]:
                 matched = False
 
@@ -358,9 +500,13 @@ def main():
                 if res: results.append(res)
                 prog.progress((i + 1) / len(tickers))
 
-        # Sort by Confluence if Ultimate mode, else by Score
-        sort_key = "Confluence" if mode == "🏆 Ultimate Confluence (Pro)" else "Score"
-        st.session_state["results"] = sorted(results, key=lambda x: x.get(sort_key, 0), reverse=True)
+        sort_keys = {
+            "🏆 Ultimate Confluence (Pro)": "Confluence",
+            "🌅 BSJP — Beli Sore Jual Pagi": "BSJP Score",
+            "🌇 BPJS — Beli Pagi Jual Sore": "BPJS Score"
+        }
+        sk = sort_keys.get(mode, "Score")
+        st.session_state["results"] = sorted(results, key=lambda x: x.get(sk, 0), reverse=True)
         st.session_state["last_scan_time"] = datetime.now().strftime("%H:%M:%S")
         st.rerun()
 
@@ -368,20 +514,32 @@ def main():
 
     with tab_res:
         if st.session_state["last_scan_time"]:
-            st.success(f"✅ Last scan completed at {st.session_state['last_scan_time']} | Mode: {st.session_state.get('scan_mode', 'N/A')}")
+            st.success(f"✅ Last scan at {st.session_state['last_scan_time']} | Mode: {st.session_state.get('scan_mode', 'N/A')}")
         if st.session_state["results"]:
             df_res = pd.DataFrame(st.session_state["results"])
             st.dataframe(df_res, use_container_width=True, hide_index=True)
 
-            # Quick stats for Ultimate mode
             if "Confluence" in df_res.columns:
-                col1, col2, col3, col4 = st.columns(4)
-                col1.metric("🔥 Sniper (85+)", len(df_res[df_res["Confluence"] >= 85]))
-                col2.metric("💎 Ultimate (75-84)", len(df_res[(df_res["Confluence"] >= 75) & (df_res["Confluence"] < 85)]))
-                col3.metric("✅ Strong (65-74)", len(df_res[(df_res["Confluence"] >= 65) & (df_res["Confluence"] < 75)]))
-                col4.metric("📊 Total Matched", len(df_res))
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("🔥 Sniper (85+)", len(df_res[df_res["Confluence"] >= 85]))
+                c2.metric("💎 Ultimate (75-84)", len(df_res[(df_res["Confluence"] >= 75) & (df_res["Confluence"] < 85)]))
+                c3.metric("✅ Strong (65-74)", len(df_res[(df_res["Confluence"] >= 65) & (df_res["Confluence"] < 75)]))
+                c4.metric("📊 Total", len(df_res))
+            elif "BSJP Score" in df_res.columns:
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("🔥 Prime (80+)", len(df_res[df_res["BSJP Score"] >= 80]))
+                c2.metric("💎 Strong (70-79)", len(df_res[(df_res["BSJP Score"] >= 70) & (df_res["BSJP Score"] < 80)]))
+                c3.metric("✅ Valid (60-69)", len(df_res[(df_res["BSJP Score"] >= 60) & (df_res["BSJP Score"] < 70)]))
+                c4.metric("📊 Total", len(df_res))
+                st.info("🌅 **BSJP Playbook**: Beli di pre-closing (jam 15:45-16:00). Exit di opening besok (jam 09:00-09:30). Stop loss: jika gap down >1%.")
+            elif "BPJS Score" in df_res.columns:
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("🔥 Prime (80+)", len(df_res[df_res["BPJS Score"] >= 80]))
+                c2.metric("💎 Strong (70-79)", len(df_res[(df_res["BPJS Score"] >= 70) & (df_res["BPJS Score"] < 80)]))
+                c3.metric("✅ Valid (60-69)", len(df_res[(df_res["BPJS Score"] >= 60) & (df_res["BPJS Score"] < 70)]))
+                c4.metric("📊 Total", len(df_res))
+                st.info("🌇 **BPJS Playbook**: Beli di opening (jam 09:00-09:15). Exit di pre-closing (jam 15:45-16:00). Stop loss: jika harga turun >1.5% dari entry.")
 
-            # Download CSV
             csv = df_res.to_csv(index=False).encode("utf-8")
             st.download_button("📥 Download CSV", csv, f"scan_{datetime.now().strftime('%Y%m%d_%H%M')}.csv", "text/csv")
         else:
@@ -394,11 +552,12 @@ def main():
             df_p = compute_technicals(fetch_data(selected + suffix, timeframe))
 
             if df_p is not None:
-                # Show confluence breakdown
                 score, breakdown = ultimate_confluence_score(df_p)
                 entry, sl, tp1, tp2, rr = calc_trade_plan(df_p.iloc[-1])
+                bsjp_s, bsjp_bd = bsjp_score(df_p)
+                bpjs_s, bpjs_bd = bpjs_score(df_p)
 
-                st.markdown(f"### {grade_signal(score)} — Confluence Score: **{score}/100**")
+                st.markdown(f"### {grade_signal(score)} Confluence: **{score}/100** | 🌅 BSJP: **{bsjp_s}** | 🌇 BPJS: **{bpjs_s}**")
 
                 col1, col2, col3, col4, col5 = st.columns(5)
                 col1.metric("Trend", f"{breakdown.get('Trend',0)}/20")
@@ -407,56 +566,14 @@ def main():
                 col4.metric("Momentum", f"{breakdown.get('Momentum',0)}/20")
                 col5.metric("Price Action", f"{breakdown.get('PriceAction',0)}/15")
 
+                st.markdown("#### 🌅🌇 BSJP / BPJS Stats")
+                bc1, bc2, bc3, bc4 = st.columns(4)
+                latest = df_p.iloc[-1]
+                bc1.metric("Gap-Up Rate (20d)", f"{latest['gap_up_rate']:.0f}%")
+                bc2.metric("Avg Overnight", f"{latest['avg_overnight']:.2f}%")
+                bc3.metric("Intraday WR (20d)", f"{latest['intraday_win_rate']:.0f}%")
+                bc4.metric("Avg Intraday", f"{latest['avg_intraday']:.2f}%")
+
                 st.markdown("#### 🎯 Trade Plan (ATR-based)")
                 tc1, tc2, tc3, tc4, tc5 = st.columns(5)
-                tc1.metric("Entry", f"{entry:.4f}")
-                tc2.metric("Stop Loss", f"{sl:.4f}", delta=f"{((sl-entry)/entry*100):.2f}%")
-                tc3.metric("TP1", f"{tp1:.4f}", delta=f"{((tp1-entry)/entry*100):.2f}%")
-                tc4.metric("TP2", f"{tp2:.4f}", delta=f"{((tp2-entry)/entry*100):.2f}%")
-                tc5.metric("R:R Ratio", f"1:{rr}")
-
-                # Chart
-                fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.5, 0.3, 0.2])
-                fig.add_trace(go.Candlestick(x=df_p.index, open=df_p["Open"], high=df_p["High"], low=df_p["Low"], close=df_p["Close"], name="Price"), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["ema20"], name="EMA20", line=dict(color="cyan", width=1)), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["ema50"], name="EMA50", line=dict(color="yellow", width=1)), row=1, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["ema200"], name="EMA200", line=dict(color="orange", width=2)), row=1, col=1)
-
-                # SL/TP lines
-                fig.add_hline(y=entry, line_dash="dash", line_color="white", annotation_text="Entry", row=1, col=1)
-                fig.add_hline(y=sl, line_dash="dash", line_color="red", annotation_text="SL", row=1, col=1)
-                fig.add_hline(y=tp1, line_dash="dash", line_color="lightgreen", annotation_text="TP1", row=1, col=1)
-                fig.add_hline(y=tp2, line_dash="dash", line_color="green", annotation_text="TP2", row=1, col=1)
-
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["vol_wave"], name="Yellow", line=dict(color="yellow")), row=2, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["dom_wave"], name="Purple", line=dict(color="purple")), row=2, col=1)
-                fig.add_trace(go.Scatter(x=df_p.index, y=df_p["struct_wave"], name="White", line=dict(color="white")), row=2, col=1)
-                fig.add_trace(go.Bar(x=df_p.index, y=df_p["inflow_ratio"], name="Inflow"), row=3, col=1)
-                fig.update_layout(template="plotly_dark", height=800, xaxis_rangeslider_visible=False)
-                st.plotly_chart(fig, use_container_width=True)
-
-                if st.button("🧠 Run Senior AI Analysis"):
-                    client = get_client()
-                    if client:
-                        with st.spinner("Analyzing Market Structure & Order Flow..."):
-                            prompt = build_ai_prompt(selected, df_p, timeframe, confluence_data=(score, breakdown))
-                            try:
-                                resp = client.chat.completions.create(
-                                    model="llama-3.3-70b-versatile",
-                                    messages=[
-                                        {"role": "system", "content": "Anda adalah asisten AI khusus Trading. Gunakan bahasa Indonesia."},
-                                        {"role": "user", "content": prompt}
-                                    ],
-                                    temperature=0.3
-                                )
-                                st.markdown("### 🤖 Hasil Analisa Senior Analyst")
-                                st.markdown(resp.choices[0].message.content)
-                            except Exception as e:
-                                st.error(f"Error pada AI: {e}")
-                    else:
-                        st.warning("API Key Groq tidak ditemukan di file secrets.")
-        else:
-            st.info("Lakukan scan market terlebih dahulu.")
-
-if __name__ == "__main__":
-    main()
+                tc1.metric("Ent
