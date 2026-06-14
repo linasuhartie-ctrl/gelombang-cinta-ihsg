@@ -15,7 +15,7 @@ from datetime import datetime
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. CONFIG & UNIVERSE
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Aulsome Matrix Pro V8.2", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Aulsome Matrix Pro V8.3", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
 
 IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO AHAP AISA AKPI AKRA ALDO ALKA ALMI AMAG AMAN AMAR AMFG AMIN AMMN AMRT ANJT ANTM APEX APLN ARCI ARGO ARII ARNA ARTA ARTI ARTO ASBI ASGR ASII ASRI ASRM ASSA ATIC AUTO AVIA BABP BACA BAJA BALI BANK BAPA BATA BBCA BBHI BBKP BBLD BBMD BBNI BBRI BBRM BBTN BBYB BCAP BCIC BDMN BEKS BELL BESS BEST BFIN BGTG BINA BIPI BIPP BIRD BISI BJBR BJTM BKDP BKSL BLTA BMAS BMHS BMRI BMSR BMTR BNBA BNBR BNGA BNII BNLI BOBA BOLA BPFI BRIS BREN BRMS BRNA BRPT BSDE BSIM BSSR BSWD BTEK BTEL BTON BTPN BTPS BUDI BUKK BULL BUMI BVIC BWPT BYAN CAKK CAMP CARS CASH CASS CCSI CEKA CENT CFIN CINT CITA CITY CLEO CMNP CMPP CNKO CNTX COAL CPIN CPRO CSAP CSRA CTBN CTRA DART DAYA DCII DEAL DEWA DFAM DGIK DILD DIVA DKFT DLTA DMMX DMND DNAR DNET DOID DPNS DSFI DSNG DSSA DUTI DYAN EAST EKAD ELSA EMDE EMTK ENRG EPMT ERAA ESSA ETWA EXCL FAST FASW FILM FIRE FISH FMII FOOD FORU FORZ FPNI FREN GAMA GDST GDYR GEMA GEMS GGRM GIAA GJTL GLOB GLVA GMFI GMTD GOLD GOOD GOTO GPRA GSMF GTBO GWSA GZCO HADE HAIS HDFA HEAL HERO HEXA HITS HKMU HMSP HOKI HOME HRME HRTA HRUM IATA IBST ICBP ICON IDEA IGAR IIKP IKAI IMAS IMJS IMPC INAF INAI INCF INCI INCO INDF INDO INDR INDS INDY INPC INPS INRU INTA INTP IPCC IPCM IPOL IPTV IRRA ISAT ISSP ITIC ITMG JAKS JAST JAWA JAYA JECC JGLE JIHD JKON JMAS JSPT JTPE KAEF KBLI KBLM KBLV KDSI KEEN KEJU KIAS KICI KIJA KINO KIOS KKGI KLBF KOBX KOIN KONI KPIG KRYA LAMI LCGP LEAD LINK LION LMAS LMPI LMSH LPCK LPGI LPIN LPKR LPLI LPPF LSIP LTLS MAIN MAMI MAPA MAPB MAPI MARK MASA MAYA MBAP MBSS MBTO MCAS MCOR MDIA MDKA MDLN MDRN MEDC MEGA MERK META MFIN MICE MIDI MIKA MINA MIRA MITI MKPI MLBI MLIA MLPL MLPT MMLP MNCN MOLI MORA MPMX MPPA MSIN MSKY MTDL MTEL MTLA MTMH MTPS MTRA MTSM MYOH MYOR MYRX MYTX NANO NELY NFCX NIPS NIRO NISP NOBU NRCA NZIA OASA OBMD OMED OMRE ONIX PADI PALM PAMG PANI PANR PANS PBSA PCAR PEGE PEHA PGAS PGEO PGLI PICO PJAA PKPK PLAS PLIN PNBN PNBS PNIN PNLF PNSE POLA POLI POLL POLY POOL PORT PRAS PRDA PSAB PSDN PSGO PSKT PTBA PTPP PTPW PUDA PURA PWON PYFA PZZA RAJA RALS RANC RBMS RDTX REAL RELI RICY RIGS RIMO RMBA ROCK ROTI RSGK RUIS SAFE SAME SAMF SAPX SCCO SCMA SCNP SDMU SDPC SFAN SGER SGRO SHID SIDO SILO SIMA SIMP SINI SIPD SKBM SKLT SKYB SMAR SMBR SMCB SMDR SMGR SMIL SMKL SMMA SMMT SMRA SMRU SMSM SOBI SOHO SONA SOSS SOTO SPMA SQMI SRAJ SRIL SRSN SRTG SSIA SSMS SSTM STTP SUGI SULI SUPR SURE SWAT TAXI TAYS TBIG TBLA TBMS TCID TCPI TEBE TECH TELE TFCO TGKA TIFA TINS TIRA TIRT TKIM TLDN TLKM TMAS TMPO TNCA TOBA TOYS TPIA TPMA TRAM TRIL TRIM TRIN TRIS TRJA TRST TRUK TSPC TUGU TURI ULTJ UNIC UNIT UNSP UNTR UNVR URBN VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX"""
 
@@ -85,6 +85,8 @@ def compute_technicals(df):
     if df is None or len(df) < 100: return None
     try:
         df = df.copy()
+        # --- Added close_position ---
+        df["close_position"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"] + 1e-9)
         df["ema20"] = ta.trend.ema_indicator(df["Close"], window=20)
         df["ema50"] = ta.trend.ema_indicator(df["Close"], window=50)
         df["ema200"] = ta.trend.ema_indicator(df["Close"], window=200)
@@ -416,9 +418,10 @@ INSTRUKSI:
 5. Max 200 kata, bahasa Indonesia, padat & actionable."""
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 6. SCANNER
+# 6. SCANNER (dengan filter tambahan)
 # ──────────────────────────────────────────────────────────────────────────────
-def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None):
+def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None,
+                bull_range=None, min_inflow=0.0):
     try:
         symbol = f"{ticker}.JK" if market == "IHSG" else f"{ticker}-USD"
         df = fetch_data(symbol, timeframe)
@@ -430,6 +433,15 @@ def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None):
             if df is None: return None
 
         latest = df.iloc[-1]
+
+        # --- New filters ---
+        if bull_range is not None:
+            bull = latest["bull_score"]
+            if not (bull_range[0] <= bull <= bull_range[1]):
+                return None
+        if min_inflow > 0 and latest["inflow_ratio"] < min_inflow:
+            return None
+
         conf_score, conf_bd = ultimate_confluence_score(df)
         trade_plan = calc_trade_plan(latest)
         lpm_score, lpm_bd = (0, {}) if not use_lpm else lpm_sniper_score(df)
@@ -448,6 +460,7 @@ def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None):
             "Conv": conv,
             "Confluence": conf_score, "Grade": grade_signal(conf_score),
             "Inflow": round(latest["inflow_ratio"], 2),
+            "Bull Score": round(latest["bull_score"], 1),
             "_df": df, "_conf_bd": conf_bd,
             "_trade_plan": trade_plan,
         }
@@ -475,21 +488,23 @@ def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None):
     except Exception:
         return None
 
-def run_scan(tickers, timeframe, market, thresholds, mode, use_lpm=False, lpm_params=None):
+def run_scan(tickers, timeframe, market, thresholds, mode, use_lpm=False, lpm_params=None,
+             bull_range=None, min_inflow=0.0):
     results = []
     progress = st.progress(0)
     status = st.empty()
     total = len(tickers)
 
     with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = {ex.submit(scan_ticker, t, timeframe, market, use_lpm, lpm_params): t for t in tickers}
+        futures = {ex.submit(scan_ticker, t, timeframe, market, use_lpm, lpm_params,
+                             bull_range, min_inflow): t for t in tickers}
         for i, f in enumerate(futures):
             try:
                 r = f.result(timeout=30)
                 if r:
                     passed = False
                     if mode == "Confluence" and r["Confluence"] >= thresholds["conf"]: passed = True
-                    elif mode == "Aul Wave Only": passed = True
+                    elif mode == "Aul Wave Only": passed = True  # but already filtered by bull_range in scan_ticker
                     elif mode == "LPM Smart Money":
                         if "LPM Score" in r and r["LPM Score"] >= thresholds.get("lpm", 60): passed = True
                     if passed: results.append(r)
@@ -509,80 +524,94 @@ def plot_chart(df, ticker, trade_plan):
 
     rows = 3 if has_lpm else 2
     heights = [0.5, 0.25, 0.25] if has_lpm else [0.6, 0.4]
-    titles = ["Price + EMA + VP", "🌊 Aul Wave", "🧠 LPM Smart Money"] if has_lpm else ["Price + EMA", "🌊 Aul Wave Predictive Trend Matrix"]
+    titles = (["Price + EMA + VP", "🌊 Aul Wave", "🧠 LPM Smart Money"]
+              if has_lpm else ["Price + EMA", "🌊 Aul Wave Predictive Trend Matrix"])
 
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.03,
                         row_heights=heights, subplot_titles=titles)
 
+    # ── Row 1: Price + EMA + Trade Levels ──
     fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"],
-                                  low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
+                                 low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
     for ema, color in [("ema20", "cyan"), ("ema50", "yellow"), ("ema200", "orange")]:
         fig.add_trace(go.Scatter(x=df.index, y=df[ema], name=ema.upper(),
-                                  line=dict(color=color, width=1)), row=1, col=1)
+                                 line=dict(color=color, width=1)), row=1, col=1)
     fig.add_hline(y=entry, line_dash="dash", line_color="white", row=1, col=1, annotation_text=f"Entry {entry:.2f}")
     fig.add_hline(y=sl, line_dash="dot", line_color="red", row=1, col=1, annotation_text=f"SL {sl:.2f}")
     fig.add_hline(y=tp1, line_dash="dot", line_color="lime", row=1, col=1, annotation_text=f"TP1 {tp1:.2f}")
     fig.add_hline(y=tp2, line_dash="dot", line_color="green", row=1, col=1, annotation_text=f"TP2 {tp2:.2f}")
     if has_lpm and "poc" in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df["poc"], name="POC", line=dict(color="white", width=1, dash="dash")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["vah"], name="VAH", line=dict(color="red", width=1, dash="dot")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["val"], name="VAL", line=dict(color="green", width=1, dash="dot")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["poc"], name="POC",
+                                 line=dict(color="white", width=1, dash="dash")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["vah"], name="VAH",
+                                 line=dict(color="red", width=1, dash="dot")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["val"], name="VAL",
+                                 line=dict(color="green", width=1, dash="dot")), row=1, col=1)
 
+    # ── Row 2: Aul Wave (4 gelombang) ──
     fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="🟡 Vol",
-                              line=dict(color="#FFD600", width=2)), row=2, col=1)
+                             line=dict(color="#FFD600", width=2)), row=2, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df["trend_wave"], name="🔵 Trend",
-                              line=dict(color="#00BFFF", width=2)), row=2, col=1)
+                             line=dict(color="#00BFFF", width=2)), row=2, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df["dom_wave"], name="🟣 Dom",
-                              line=dict(color="#D500F9", width=2)), row=2, col=1)
+                             line=dict(color="#D500F9", width=2)), row=2, col=1)
     fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="⚪ Struct",
-                              line=dict(color="#FFFFFF", width=2)), row=2, col=1)
+                             line=dict(color="#FFFFFF", width=2)), row=2, col=1)
     fig.add_hline(y=80, line_color="rgba(0,100,0,0.5)", row=2, col=1, annotation_text="Super Bull")
     fig.add_hline(y=40, line_dash="dash", line_color="rgba(0,255,0,0.3)", row=2, col=1)
     fig.add_hline(y=0, line_dash="dot", line_color="gray", row=2, col=1)
     fig.add_hline(y=-40, line_dash="dash", line_color="rgba(255,0,0,0.3)", row=2, col=1)
     fig.add_hline(y=-80, line_color="rgba(139,0,0,0.5)", row=2, col=1, annotation_text="Super Bear")
 
+    # ── Row 3: LPM Smart Money ──
     if has_lpm:
         lpm_color = "#00ff88" if df["lpm_momentum"].iloc[-1] >= 0 else "#ff3860"
         fig.add_trace(go.Scatter(x=df.index, y=df["lpm_norm"], name="LPM Norm",
-                                  line=dict(color=lpm_color, width=2)), row=3, col=1)
+                                 line=dict(color=lpm_color, width=2)), row=3, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df["lpm_confidence"], name="Confidence",
-                                  line=dict(color="rgba(255,255,255,0.6)", width=1)), row=3, col=1)
+                                 line=dict(color="rgba(255,255,255,0.6)", width=1)), row=3, col=1)
         fig.add_trace(go.Scatter(x=df.index, y=df["lpm_smooth_trend"], name="LPM Trend",
-                                  line=dict(color="rgba(255,255,0,0.3)", width=1)), row=3, col=1)
+                                 line=dict(color="rgba(255,255,0,0.3)", width=1)), row=3, col=1)
+
         abs_buy_idx = df.index[df["buy_absorption"]]
         abs_sell_idx = df.index[df["sell_absorption"]]
         if len(abs_buy_idx) > 0:
             fig.add_trace(go.Scatter(x=abs_buy_idx, y=[5]*len(abs_buy_idx), mode="markers",
-                                      marker=dict(color="aqua", size=8, symbol="circle"), name="Buy Absorb"), row=3, col=1)
+                                     marker=dict(color="aqua", size=8, symbol="circle"),
+                                     name="Buy Absorb"), row=3, col=1)
         if len(abs_sell_idx) > 0:
             fig.add_trace(go.Scatter(x=abs_sell_idx, y=[95]*len(abs_sell_idx), mode="markers",
-                                      marker=dict(color="orange", size=8, symbol="circle"), name="Sell Absorb"), row=3, col=1)
+                                     marker=dict(color="orange", size=8, symbol="circle"),
+                                     name="Sell Absorb"), row=3, col=1)
+
         bull_idx = df.index[df["bull_div"]]
         bear_idx = df.index[df["bear_div"]]
         if len(bull_idx) > 0:
             fig.add_trace(go.Scatter(x=bull_idx, y=[10]*len(bull_idx), mode="markers",
-                                      marker=dict(color="lime", size=10, symbol="triangle-up"), name="Bull Div"), row=3, col=1)
+                                     marker=dict(color="lime", size=10, symbol="triangle-up"),
+                                     name="Bull Div"), row=3, col=1)
         if len(bear_idx) > 0:
             fig.add_trace(go.Scatter(x=bear_idx, y=[90]*len(bear_idx), mode="markers",
-                                      marker=dict(color="red", size=10, symbol="triangle-down"), name="Bear Div"), row=3, col=1)
+                                     marker=dict(color="red", size=10, symbol="triangle-down"),
+                                     name="Bear Div"), row=3, col=1)
+
         fig.add_hline(y=0, line_color="rgba(128,128,128,0.5)", row=3, col=1)
         fig.add_hline(y=50, line_dash="dot", line_color="rgba(128,128,128,0.7)", row=3, col=1)
         fig.add_hline(y=75, line_dash="dash", line_color="rgba(0,255,0,0.5)", row=3, col=1, annotation_text="Strong Accum")
         fig.add_hline(y=90, line_dash="dash", line_color="rgba(255,165,0,0.5)", row=3, col=1, annotation_text="Exhausted")
 
-    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V8.2",
-                       template="plotly_dark", height=1000 if has_lpm else 800,
-                       xaxis_rangeslider_visible=False, showlegend=True,
-                       paper_bgcolor="#0a0a0a", plot_bgcolor="#0a0a0a")
+    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V8.3",
+                      template="plotly_dark", height=1000 if has_lpm else 800,
+                      xaxis_rangeslider_visible=False, showlegend=True,
+                      paper_bgcolor="#0a0a0a", plot_bgcolor="#0a0a0a")
     return fig
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 8. MAIN APP (Clean Sidebar)
+# 8. MAIN APP (Clean Sidebar with Improvements)
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
     init_state()
-    st.title("🌊 Aulsome Matrix Pro V8.2")
+    st.title("🌊 Aulsome Matrix Pro V8.3")
     st.caption("Aul Wave + LPM Smart Money Tracker PRO v6 | 645 Crypto | Clean & Fast")
 
     with st.sidebar:
@@ -595,6 +624,10 @@ def main():
         st.subheader("🌊 Aul Wave Filter")
         aul_enabled = st.checkbox("Aktifkan Aul Wave Filter", value=False, key="aul_en")
         aul_min, aul_max = st.slider("Range Bull Score", -100, 100, (0, 100), 5, key="aul_range")
+
+        st.markdown("---")
+        st.subheader("📈 Volume Filter")
+        min_inflow = st.slider("Min Inflow Ratio", 0.0, 3.0, 0.0, 0.1, help="0 = tidak ada filter")
 
         st.markdown("---")
         st.subheader("🧠 LPM Settings")
@@ -639,12 +672,22 @@ def main():
                     tickers_raw = IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA
                     tickers = tickers_raw.split()[:universe_size]
             else:
+                # Cegah error jika custom tickers kosong dan use_custom dicentang
+                if use_custom:
+                    st.error("Custom tickers kosong! Harap isi atau matikan checkbox.")
+                    return
                 tickers_raw = IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA
                 tickers = tickers_raw.split()[:universe_size]
 
             use_lpm = (mode == "LPM Smart Money")
+            # Konfigurasi bull_range jika filter Aul diaktifkan, jika tidak None
+            bull_range = (aul_min, aul_max) if aul_enabled else None
             with st.spinner(f"Scanning {len(tickers)} tickers..."):
-                st.session_state["results"] = run_scan(tickers, timeframe, market, thresholds, mode, use_lpm, lpm_params)
+                st.session_state["results"] = run_scan(
+                    tickers, timeframe, market, thresholds, mode,
+                    use_lpm=use_lpm, lpm_params=lpm_params,
+                    bull_range=bull_range, min_inflow=min_inflow
+                )
                 st.session_state["scan_triggered"] = True
                 st.session_state["last_scan_time"] = datetime.now().strftime("%H:%M:%S")
                 st.session_state["scan_mode"] = mode
@@ -656,7 +699,7 @@ def main():
             st.warning("❌ Tidak ada ticker yang lolos. Longgarkan threshold atau cek koneksi.")
             return
 
-        sort_map = {"Confluence": "Confluence", "Aul Wave Only": "🟡 Vol", "LPM Smart Money": "LPM Score"}
+        sort_map = {"Confluence": "Confluence", "Aul Wave Only": "Bull Score", "LPM Smart Money": "LPM Score"}
         sort_key = sort_map.get(st.session_state["scan_mode"], "Confluence")
         results = sorted(results, key=lambda x: x.get(sort_key, 0), reverse=True)
 
