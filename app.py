@@ -54,7 +54,7 @@ USDS RAIN CC BEST FIGURE ARC TEMPO AERO VIRTUAL WLFI HYPER MASS TAPZI STL RIPPLE
 """
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 2. CORE ENGINE (unchanged)
+# 2. CORE ENGINE
 # ──────────────────────────────────────────────────────────────────────────────
 def init_state():
     if "results" not in st.session_state: st.session_state["results"] = []
@@ -74,60 +74,89 @@ def pandas_wma(series, window):
 # ─── BATCH FETCH (yfinance multi-ticker) ───
 @st.cache_data(ttl=600, show_spinner=False)
 def fetch_batch(tickers, timeframe, market):
-    """Download banyak ticker sekaligus untuk crypto, atau satu per satu untuk IHSG."""
-    tf_map = {"15m": ("5d", "15m"), "1h": ("1mo", "1h"), "4h": ("2mo", "4h"), "1d": ("2y", "1d")}
+    """Download banyak ticker sekaligus, resample ke 4h secara dinamis jika diminta."""
+    # Untuk 4h, kita ambil data 1h sejauh 3 bulan agar saat digabung (dibagi 4) tetap sisa >100 candle
+    tf_map = {
+        "15m": ("5d", "15m"), 
+        "1h": ("1mo", "1h"), 
+        "4h": ("3mo", "1h"), 
+        "1d": ("2y", "1d")
+    }
     period, interval = tf_map.get(timeframe, ("2y", "1d"))
 
     data = {}
 
+    def resample_if_needed(df, tf):
+        """Fungsi pembantu Pandas untuk menjahit candle jadi 4 jam"""
+        if tf == "4h" and len(df) > 0:
+            resampled = df.resample('4h').agg({
+                'Open': 'first',
+                'High': 'max',
+                'Low': 'min',
+                'Close': 'last',
+                'Volume': 'sum'
+            }).dropna()
+            return resampled
+        return df
+
     if market == "Crypto":
-        # Gabungkan jadi string "BTC-USD ETH-USD ..."
         symbols = " ".join([f"{t}-USD" for t in tickers])
         for attempt in range(3):
             try:
-                df_all = yf.download(symbols, period=period, interval=interval, progress=False, auto_adjust=True)
+                df_all = yf.download(symbols, period=period, interval=interval, progress=False, auto_adjust=True, group_by='ticker')
+                
                 if df_all.empty:
                     time.sleep(2)
                     continue
-                # df_all has MultiIndex columns if multiple tickers
+                
                 if len(tickers) == 1:
-                    # yfinance returns single-level columns for 1 ticker
-                    col = tickers[0]
+                    t = tickers[0]
                     df = df_all.copy()
                     if isinstance(df.columns, pd.MultiIndex):
-                        df.columns = df.columns.get_level_values(0)
+                        df.columns = df.columns.get_level_values(df.columns.names.index('Price') if 'Price' in df.columns.names else 0)
+                    
+                    df = resample_if_needed(df, timeframe)
                     if len(df) >= 100:
-                        data[col] = df.dropna()
+                        data[t] = df.dropna()
                 else:
                     for t in tickers:
                         try:
-                            df = df_all.xs(t, axis=1, level=1) if isinstance(df_all.columns, pd.MultiIndex) else df_all
+                            symbol = f"{t}-USD"
+                            if isinstance(df_all.columns, pd.MultiIndex):
+                                df = df_all[symbol].copy()
+                            else:
+                                df = df_all.copy()
+                            
+                            df = resample_if_needed(df, timeframe)
                             if len(df) >= 100:
                                 data[t] = df.dropna()
                         except KeyError:
                             continue
-                break  # berhasil
+                break
             except Exception:
                 time.sleep(5)
         return data
 
-    else:  # IHSG – download satu per satu dengan retry & delay
+    else:  # IHSG
         for t in tickers:
             symbol = f"{t}.JK"
             for attempt in range(2):
                 try:
                     df = yf.download(symbol, period=period, interval=interval, progress=False, auto_adjust=True)
-                    if not df.empty and len(df) >= 100:
+                    if not df.empty:
                         if isinstance(df.columns, pd.MultiIndex):
                             df.columns = df.columns.get_level_values(0)
-                        data[t] = df.dropna()
+                        
+                        df = resample_if_needed(df, timeframe)
+                        if len(df) >= 100:
+                            data[t] = df.dropna()
                     break
                 except Exception:
                     time.sleep(2)
-            time.sleep(0.1)  # small delay antar request
+            time.sleep(0.1)
         return data
 
-# ─── Technicals (unchanged) ───
+# ─── Technicals ───
 def compute_technicals(df):
     if df is None or len(df) < 100: return None
     try:
@@ -177,7 +206,7 @@ def compute_technicals(df):
     except Exception:
         return None
 
-# ─── LPM (unchanged) ───
+# ─── LPM ───
 def compute_lpm_metrics(df, big_vol_mult=1.5, exhaust_level=90.0):
     if df is None or len(df) < 100: return None
     df = df.copy()
@@ -446,7 +475,7 @@ INSTRUKSI:
 4. Rekomendasi strategi terbaik.
 5. Max 200 kata, bahasa Indonesia, padat & actionable."""
 
-# ─── SCANNER (pakai batch data) ───
+# ─── SCANNER ───
 def scan_ticker(ticker, df_dict, use_lpm=False, lpm_params=None):
     df = df_dict.get(ticker)
     if df is None: return None, False
@@ -491,7 +520,6 @@ def run_scan(tickers, timeframe, market, mode, lpm_params=None, min_score=0):
     progress = st.progress(0)
     status = st.empty()
 
-    # Fetch batch
     with st.spinner("📡 Mengunduh data..."):
         df_dict = fetch_batch(tickers, timeframe, market)
 
@@ -500,7 +528,6 @@ def run_scan(tickers, timeframe, market, mode, lpm_params=None, min_score=0):
     fail = 0
 
     use_lpm = (mode == "LPM Smart Money")
-    # Proses per ticker
     for i, t in enumerate(tickers):
         r, ok = scan_ticker(t, df_dict, use_lpm=use_lpm, lpm_params=lpm_params)
         if ok:
