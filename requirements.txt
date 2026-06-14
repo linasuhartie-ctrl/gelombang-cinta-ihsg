@@ -5,4 +5,4 @@ numpy>=1.26.0
 plotly>=5.22.0
 ta
 groq
-
+ccxt
