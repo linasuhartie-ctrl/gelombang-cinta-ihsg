@@ -11,11 +11,12 @@ from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor
 from groq import Groq
 from datetime import datetime
+import ccxt
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. CONFIG & UNIVERSE
 # ──────────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title="Aulsome Matrix Pro V8.3", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Aulsome Matrix Pro V8.5", page_icon="🌊", layout="wide", initial_sidebar_state="expanded")
 
 IHSG_MEGA = """AALI ABBA ABDA ABMM ACES ACST ADCP ADES ADHI ADMF ADMG ADMR ADRO AGII AGRO AHAP AISA AKPI AKRA ALDO ALKA ALMI AMAG AMAN AMAR AMFG AMIN AMMN AMRT ANJT ANTM APEX APLN ARCI ARGO ARII ARNA ARTA ARTI ARTO ASBI ASGR ASII ASRI ASRM ASSA ATIC AUTO AVIA BABP BACA BAJA BALI BANK BAPA BATA BBCA BBHI BBKP BBLD BBMD BBNI BBRI BBRM BBTN BBYB BCAP BCIC BDMN BEKS BELL BESS BEST BFIN BGTG BINA BIPI BIPP BIRD BISI BJBR BJTM BKDP BKSL BLTA BMAS BMHS BMRI BMSR BMTR BNBA BNBR BNGA BNII BNLI BOBA BOLA BPFI BRIS BREN BRMS BRNA BRPT BSDE BSIM BSSR BSWD BTEK BTEL BTON BTPN BTPS BUDI BUKK BULL BUMI BVIC BWPT BYAN CAKK CAMP CARS CASH CASS CCSI CEKA CENT CFIN CINT CITA CITY CLEO CMNP CMPP CNKO CNTX COAL CPIN CPRO CSAP CSRA CTBN CTRA DART DAYA DCII DEAL DEWA DFAM DGIK DILD DIVA DKFT DLTA DMMX DMND DNAR DNET DOID DPNS DSFI DSNG DSSA DUTI DYAN EAST EKAD ELSA EMDE EMTK ENRG EPMT ERAA ESSA ETWA EXCL FAST FASW FILM FIRE FISH FMII FOOD FORU FORZ FPNI FREN GAMA GDST GDYR GEMA GEMS GGRM GIAA GJTL GLOB GLVA GMFI GMTD GOLD GOOD GOTO GPRA GSMF GTBO GWSA GZCO HADE HAIS HDFA HEAL HERO HEXA HITS HKMU HMSP HOKI HOME HRME HRTA HRUM IATA IBST ICBP ICON IDEA IGAR IIKP IKAI IMAS IMJS IMPC INAF INAI INCF INCI INCO INDF INDO INDR INDS INDY INPC INPS INRU INTA INTP IPCC IPCM IPOL IPTV IRRA ISAT ISSP ITIC ITMG JAKS JAST JAWA JAYA JECC JGLE JIHD JKON JMAS JSPT JTPE KAEF KBLI KBLM KBLV KDSI KEEN KEJU KIAS KICI KIJA KINO KIOS KKGI KLBF KOBX KOIN KONI KPIG KRYA LAMI LCGP LEAD LINK LION LMAS LMPI LMSH LPCK LPGI LPIN LPKR LPLI LPPF LSIP LTLS MAIN MAMI MAPA MAPB MAPI MARK MASA MAYA MBAP MBSS MBTO MCAS MCOR MDIA MDKA MDLN MDRN MEDC MEGA MERK META MFIN MICE MIDI MIKA MINA MIRA MITI MKPI MLBI MLIA MLPL MLPT MMLP MNCN MOLI MORA MPMX MPPA MSIN MSKY MTDL MTEL MTLA MTMH MTPS MTRA MTSM MYOH MYOR MYRX MYTX NANO NELY NFCX NIPS NIRO NISP NOBU NRCA NZIA OASA OBMD OMED OMRE ONIX PADI PALM PAMG PANI PANR PANS PBSA PCAR PEGE PEHA PGAS PGEO PGLI PICO PJAA PKPK PLAS PLIN PNBN PNBS PNIN PNLF PNSE POLA POLI POLL POLY POOL PORT PRAS PRDA PSAB PSDN PSGO PSKT PTBA PTPP PTPW PUDA PURA PWON PYFA PZZA RAJA RALS RANC RBMS RDTX REAL RELI RICY RIGS RIMO RMBA ROCK ROTI RSGK RUIS SAFE SAME SAMF SAPX SCCO SCMA SCNP SDMU SDPC SFAN SGER SGRO SHID SIDO SILO SIMA SIMP SINI SIPD SKBM SKLT SKYB SMAR SMBR SMCB SMDR SMGR SMIL SMKL SMMA SMMT SMRA SMRU SMSM SOBI SOHO SONA SOSS SOTO SPMA SQMI SRAJ SRIL SRSN SRTG SSIA SSMS SSTM STTP SUGI SULI SUPR SURE SWAT TAXI TAYS TBIG TBLA TBMS TCID TCPI TEBE TECH TELE TFCO TGKA TIFA TINS TIRA TIRT TKIM TLDN TLKM TMAS TMPO TNCA TOBA TOYS TPIA TPMA TRAM TRIL TRIM TRIN TRIS TRJA TRST TRUK TSPC TUGU TURI ULTJ UNIC UNIT UNSP UNTR UNVR URBN VCGG VICO VINS VIVA VKTR VOKS VRNA WAPO WEHA WEGE WIFI WIKA WINS WOMF WOOD WSBP WSKT WTON YELO YPAS ZATA ZBRA ZINC ZONE ZYRX"""
 
@@ -60,6 +61,7 @@ def init_state():
     if "scan_triggered" not in st.session_state: st.session_state["scan_triggered"] = False
     if "last_scan_time" not in st.session_state: st.session_state["last_scan_time"] = None
     if "scan_mode" not in st.session_state: st.session_state["scan_mode"] = None
+    if "fetch_stats" not in st.session_state: st.session_state["fetch_stats"] = (0, 0)
 
 def get_client():
     try: return Groq(api_key=st.secrets.get("GROQ_KEY", ""))
@@ -69,23 +71,68 @@ def pandas_wma(series, window):
     weights = np.arange(1, window + 1)
     return series.rolling(window).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
-@st.cache_data(ttl=600, show_spinner=False)
-def fetch_data(ticker, timeframe):
+# ─── Improved CCXT data fetcher with valid symbol check ───
+@st.cache_data(ttl=120, show_spinner=False)
+def get_valid_crypto_tickers(universe_tickers):
+    """Preload Binance markets and filter only those that exist + USDT pairs."""
     try:
-        mapping = {"15m": ("5d", "15m"), "1h": ("1mo", "1h"), "4h": ("2mo", "4h"), "1d": ("2y", "1d")}
-        period, interval = mapping.get(timeframe, ("2y", "1d"))
-        df = yf.download(ticker.upper(), period=period, interval=interval, progress=False, auto_adjust=True)
-        if df.empty or len(df) < 100: return None
-        if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
-        return df.dropna()
+        exchange = ccxt.binance()
+        markets = exchange.load_markets()
+        valid = set()
+        for t in universe_tickers:
+            symbol = f"{t}/USDT"
+            if symbol in markets and markets[symbol].get("active", False):
+                valid.add(t)
+        return list(valid)
+    except Exception:
+        # fallback: return all tickers (will be filtered later by fetch error)
+        return universe_tickers
+
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_data(ticker, timeframe, market):
+    try:
+        if market == "Crypto":
+            return _fetch_ccxt(ticker, timeframe)
+        else:
+            return _fetch_yf(ticker, timeframe)
     except Exception:
         return None
 
+def _fetch_yf(ticker, timeframe):
+    mapping = {"15m": ("5d", "15m"), "1h": ("1mo", "1h"), "4h": ("2mo", "4h"), "1d": ("2y", "1d")}
+    period, interval = mapping.get(timeframe, ("2y", "1d"))
+    df = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
+    if df.empty or len(df) < 100: return None
+    if isinstance(df.columns, pd.MultiIndex): df.columns = df.columns.get_level_values(0)
+    return df.dropna()
+
+def _fetch_ccxt(ticker, timeframe):
+    exchange = ccxt.binance({'enableRateLimit': True, 'timeout': 20000})
+    tf_map = {"15m": "15m", "1h": "1h", "4h": "4h", "1d": "1d"}
+    ccxt_tf = tf_map.get(timeframe, "1d")
+    limits = {"15m": 200, "1h": 200, "4h": 300, "1d": 500}
+    limit = limits.get(timeframe, 500)
+    symbol = f"{ticker}/USDT"
+
+    try:
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=ccxt_tf, limit=limit)
+    except Exception:
+        return None
+
+    if len(ohlcv) < 100:
+        return None
+
+    df = pd.DataFrame(ohlcv, columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df.set_index('timestamp', inplace=True)
+    df = df[['Open', 'High', 'Low', 'Close', 'Volume']].astype(float)
+    return df.dropna()
+
+# ─── Technicals ───
 def compute_technicals(df):
     if df is None or len(df) < 100: return None
     try:
         df = df.copy()
-        # --- Added close_position ---
         df["close_position"] = (df["Close"] - df["Low"]) / (df["High"] - df["Low"] + 1e-9)
         df["ema20"] = ta.trend.ema_indicator(df["Close"], window=20)
         df["ema50"] = ta.trend.ema_indicator(df["Close"], window=50)
@@ -131,13 +178,10 @@ def compute_technicals(df):
     except Exception:
         return None
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 3. LPM SMART MONEY ENGINE (Pine Script v6 — Default Settings)
-# ──────────────────────────────────────────────────────────────────────────────
+# ─── LPM ───
 def compute_lpm_metrics(df, big_vol_mult=1.5, exhaust_level=90.0):
     if df is None or len(df) < 100: return None
     df = df.copy()
-
     vol_length, smooth_len, max_rel_vol = 20, 5, 4.0
     atr_len, spread_limit, absorb_boost = 14, 0.8, 0.25
     vp_lookback, vp_value_area = 50, 70.0
@@ -316,14 +360,11 @@ def grade_lpm(score):
     elif score >= 60: return "⚠️ WATCH"
     return "❌ SKIP"
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 4. CONFLUENCE ENGINE (Simplified)
-# ──────────────────────────────────────────────────────────────────────────────
+# ─── Confluence ───
 def ultimate_confluence_score(df):
     if df is None or len(df) < 200: return 0, {}
     latest, prev, prev2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]
     breakdown = {}
-
     trend_pts = 0
     if latest["ema50"] > latest["ema200"]: trend_pts += 10
     if latest["Close"] > latest["ema50"]: trend_pts += 5
@@ -369,40 +410,31 @@ def calc_trade_plan(latest):
     rr = round((tp1 - entry) / (entry - sl), 2) if (entry - sl) > 0 else 0
     return entry, sl, tp1, tp2, rr
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 5. AI PROMPT (Simplified)
-# ──────────────────────────────────────────────────────────────────────────────
+# ─── AI Prompt ───
 def build_ai_prompt(ticker, df, conf_score, conf_bd, trade_plan, lpm_data=None):
     latest = df.iloc[-1]
     entry, sl, tp1, tp2, rr = trade_plan
     conv = "🔥 MAX BUY" if latest["max_buy"] else ("🌅 CROSS UP" if latest["cross_up"] else 
            ("🔻 MAX SELL" if latest["max_sell"] else ("🌇 CROSS DOWN" if latest["cross_down"] else "—")))
-
     lpm_section = ""
     if lpm_data and "lpm_norm" in latest:
         dte_val = latest["dte"]
         dte_str = f"{dte_val:.1f}" if not pd.isna(dte_val) else "N/A"
         lpm_section = f"""
-🧠 LPM SMART MONEY (Pine Script v6 @yucuppucuy):
+🧠 LPM SMART MONEY (Pine Script v6):
 - LPM Norm: {latest['lpm_norm']:.1f} | Confidence: {latest['lpm_confidence']:.1f}%
 - State: {latest['lpm_state']} | Trend: {latest['lpm_trend_status']}
 - Rel Volume: {latest['rel_vol']:.2f}x | Big Money: {'YES' if latest['is_big_money'] else 'NO'}
 - Buy Absorption: {'YES' if latest['buy_absorption'] else 'NO'} | Sell Absorption: {'YES' if latest['sell_absorption'] else 'NO'}
-- Bull Divergence: {'YES' if latest['bull_div'] else 'NO'} | Bear Divergence: {'YES' if latest['bear_div'] else 'NO'}
 - VP Position: {latest['vp_position']} | DTE: {dte_str} bars
-- LPM Sniper Score: {lpm_data.get('score', 0)}/100 ({lpm_data.get('grade', 'N/A')})
+- LPM Score: {lpm_data.get('score',0)}/100 ({lpm_data.get('grade','N/A')})
 """
-
-    return f"""Anda adalah trader profesional. Analisis {ticker} berdasarkan DATA KONKRIT:
+    return f"""Anda trader profesional. Analisis {ticker} berdasarkan data:
 
 📊 PRICE: Close {latest['Close']:.2f} | Close Pos: {latest['close_position']*100:.1f}%
-
-🌊 AUL WAVE 4 GELOMBANG:
-- 🟡 Vol Wave: {latest['vol_wave']:.1f} | 🔵 Trend Wave: {latest['trend_wave']:.1f}
-- 🟣 Dom Wave: {latest['dom_wave']:.1f} | ⚪ Struct Wave: {latest['struct_wave']:.1f}
-- 🎯 Konvergensi: {conv}
+🌊 AUL WAVE: 🟡Vol {latest['vol_wave']:.1f} 🔵Trend {latest['trend_wave']:.1f} 🟣Dom {latest['dom_wave']:.1f} ⚪Struct {latest['struct_wave']:.1f} → {conv}
 {lpm_section}
-📈 INDIKATOR: RSI {latest['rsi']:.1f} | ATR {latest['atr']:.2f} | Inflow {latest['inflow_ratio']:.2f}x
+📈 RSI {latest['rsi']:.1f} | ATR {latest['atr']:.2f} | Inflow {latest['inflow_ratio']:.2f}x
 EMA20 {latest['ema20']:.2f} | EMA50 {latest['ema50']:.2f} | EMA200 {latest['ema200']:.2f}
 
 🎯 CONFLUENCE ({conf_score}/100 → {grade_signal(conf_score)}):
@@ -413,124 +445,94 @@ Trend {conf_bd.get('Trend',0)} | Struct {conf_bd.get('Structure',0)} | SmartMone
 INSTRUKSI:
 1. VERDICT (BUY/WAIT/AVOID) + alasan data.
 2. Highlight gelombang Aul Wave terkuat & terlemah.
-3. Analisis LPM Smart Money: akumulasi institusional, absorption, divergence?
-4. Rekomendasi strategi terbaik berdasarkan skor tertinggi.
+3. Analisis LPM Smart Money jika ada.
+4. Rekomendasi strategi terbaik.
 5. Max 200 kata, bahasa Indonesia, padat & actionable."""
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 6. SCANNER (dengan filter tambahan)
-# ──────────────────────────────────────────────────────────────────────────────
-def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None,
-                bull_range=None, min_inflow=0.0):
+# ─── Scanner (simple, with feedback) ───
+def scan_ticker(ticker, timeframe, market, use_lpm=False, lpm_params=None):
     try:
-        symbol = f"{ticker}.JK" if market == "IHSG" else f"{ticker}-USD"
-        df = fetch_data(symbol, timeframe)
+        df = fetch_data(ticker, timeframe, market)
         df = compute_technicals(df)
-        if df is None or len(df) < 200: return None
-
+        if df is None or len(df) < 200: return None, False
         if use_lpm:
             df = compute_lpm_metrics(df, **lpm_params)
-            if df is None: return None
-
+            if df is None: return None, False
         latest = df.iloc[-1]
-
-        # --- New filters ---
-        if bull_range is not None:
-            bull = latest["bull_score"]
-            if not (bull_range[0] <= bull <= bull_range[1]):
-                return None
-        if min_inflow > 0 and latest["inflow_ratio"] < min_inflow:
-            return None
-
         conf_score, conf_bd = ultimate_confluence_score(df)
         trade_plan = calc_trade_plan(latest)
         lpm_score, lpm_bd = (0, {}) if not use_lpm else lpm_sniper_score(df)
-
         conv = "MAX BUY" if latest["max_buy"] else ("CROSS UP" if latest["cross_up"] else 
                ("MAX SELL" if latest["max_sell"] else ("CROSS DOWN" if latest["cross_down"] else "-")))
-
         result = {
-            "Ticker": ticker, "Symbol": symbol,
+            "Ticker": ticker,
             "Close": round(latest["Close"], 4),
-            "RSI": round(latest["rsi"], 1),
+            "Confluence": conf_score, "Grade": grade_signal(conf_score),
+            "Conv": conv,
             "🟡 Vol": round(latest["vol_wave"], 1),
             "🔵 Trend": round(latest["trend_wave"], 1),
             "🟣 Dom": round(latest["dom_wave"], 1),
             "⚪ Struct": round(latest["struct_wave"], 1),
-            "Conv": conv,
-            "Confluence": conf_score, "Grade": grade_signal(conf_score),
+            "RSI": round(latest["rsi"], 1),
             "Inflow": round(latest["inflow_ratio"], 2),
-            "Bull Score": round(latest["bull_score"], 1),
             "_df": df, "_conf_bd": conf_bd,
             "_trade_plan": trade_plan,
         }
-
         if use_lpm:
             dte_val = latest["dte"]
             result.update({
-                "LPM Norm": round(latest["lpm_norm"], 1),
-                "LPM Conf": round(latest["lpm_confidence"], 1),
+                "LPM Score": lpm_score, "LPM Grade": grade_lpm(lpm_score),
                 "LPM State": latest["lpm_state"],
-                "LPM Trend": latest["lpm_trend_status"],
-                "RelVol": round(latest["rel_vol"], 2),
-                "BigMoney": "YES" if latest["is_big_money"] else "NO",
                 "BuyAbs": "YES" if latest["buy_absorption"] else "NO",
-                "SellAbs": "YES" if latest["sell_absorption"] else "NO",
                 "BullDiv": "YES" if latest["bull_div"] else "NO",
-                "BearDiv": "YES" if latest["bear_div"] else "NO",
-                "DTE": round(dte_val, 1) if not pd.isna(dte_val) else "N/A",
-                "VP Pos": latest["vp_position"],
-                "LPM Score": lpm_score,
-                "LPM Grade": grade_lpm(lpm_score),
                 "_lpm_bd": lpm_bd,
             })
-        return result
+        return result, True
     except Exception:
-        return None
+        return None, False
 
-def run_scan(tickers, timeframe, market, thresholds, mode, use_lpm=False, lpm_params=None,
-             bull_range=None, min_inflow=0.0):
+def run_scan(tickers, timeframe, market, mode, lpm_params=None, min_conf=0, min_lpm=0):
     results = []
     progress = st.progress(0)
     status = st.empty()
     total = len(tickers)
+    success_count = 0
+    fail_count = 0
 
-    with ThreadPoolExecutor(max_workers=10) as ex:
-        futures = {ex.submit(scan_ticker, t, timeframe, market, use_lpm, lpm_params,
-                             bull_range, min_inflow): t for t in tickers}
+    use_lpm = (mode == "LPM Smart Money")
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        futures = {ex.submit(scan_ticker, t, timeframe, market, use_lpm, lpm_params): t for t in tickers}
         for i, f in enumerate(futures):
             try:
-                r = f.result(timeout=30)
-                if r:
-                    passed = False
-                    if mode == "Confluence" and r["Confluence"] >= thresholds["conf"]: passed = True
-                    elif mode == "Aul Wave Only": passed = True  # but already filtered by bull_range in scan_ticker
-                    elif mode == "LPM Smart Money":
-                        if "LPM Score" in r and r["LPM Score"] >= thresholds.get("lpm", 60): passed = True
-                    if passed: results.append(r)
-            except Exception: pass
+                r, ok = f.result(timeout=60)
+                if ok:
+                    success_count += 1
+                    if mode == "Confluence" and r["Confluence"] >= min_conf:
+                        results.append(r)
+                    elif mode == "LPM Smart Money" and r.get("LPM Score", 0) >= min_lpm:
+                        results.append(r)
+                else:
+                    fail_count += 1
+            except Exception:
+                fail_count += 1
             progress.progress((i + 1) / total)
-            status.text(f"Scanning {i+1}/{total}...")
-
-    progress.empty(); status.empty()
+            status.text(f"Fetch {i+1}/{total} | ✅ {success_count} | ❌ {fail_count}")
+    progress.empty()
+    status.empty()
+    # Store stats in session
+    st.session_state["fetch_stats"] = (success_count, fail_count)
     return results
 
-# ──────────────────────────────────────────────────────────────────────────────
-# 7. CHART — 3 Subplots (Price, Aul Wave, LPM)
-# ──────────────────────────────────────────────────────────────────────────────
+# ─── Chart (unchanged) ───
 def plot_chart(df, ticker, trade_plan):
     entry, sl, tp1, tp2, _ = trade_plan
     has_lpm = "lpm_norm" in df.columns
-
     rows = 3 if has_lpm else 2
     heights = [0.5, 0.25, 0.25] if has_lpm else [0.6, 0.4]
     titles = (["Price + EMA + VP", "🌊 Aul Wave", "🧠 LPM Smart Money"]
               if has_lpm else ["Price + EMA", "🌊 Aul Wave Predictive Trend Matrix"])
-
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True, vertical_spacing=0.03,
                         row_heights=heights, subplot_titles=titles)
-
-    # ── Row 1: Price + EMA + Trade Levels ──
     fig.add_trace(go.Candlestick(x=df.index, open=df["Open"], high=df["High"],
                                  low=df["Low"], close=df["Close"], name="Price"), row=1, col=1)
     for ema, color in [("ema20", "cyan"), ("ema50", "yellow"), ("ema200", "orange")]:
@@ -541,152 +543,97 @@ def plot_chart(df, ticker, trade_plan):
     fig.add_hline(y=tp1, line_dash="dot", line_color="lime", row=1, col=1, annotation_text=f"TP1 {tp1:.2f}")
     fig.add_hline(y=tp2, line_dash="dot", line_color="green", row=1, col=1, annotation_text=f"TP2 {tp2:.2f}")
     if has_lpm and "poc" in df.columns:
-        fig.add_trace(go.Scatter(x=df.index, y=df["poc"], name="POC",
-                                 line=dict(color="white", width=1, dash="dash")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["vah"], name="VAH",
-                                 line=dict(color="red", width=1, dash="dot")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["val"], name="VAL",
-                                 line=dict(color="green", width=1, dash="dot")), row=1, col=1)
-
-    # ── Row 2: Aul Wave (4 gelombang) ──
-    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="🟡 Vol",
-                             line=dict(color="#FFD600", width=2)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["trend_wave"], name="🔵 Trend",
-                             line=dict(color="#00BFFF", width=2)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["dom_wave"], name="🟣 Dom",
-                             line=dict(color="#D500F9", width=2)), row=2, col=1)
-    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="⚪ Struct",
-                             line=dict(color="#FFFFFF", width=2)), row=2, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["poc"], name="POC", line=dict(color="white", width=1, dash="dash")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["vah"], name="VAH", line=dict(color="red", width=1, dash="dot")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["val"], name="VAL", line=dict(color="green", width=1, dash="dot")), row=1, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["vol_wave"], name="🟡 Vol", line=dict(color="#FFD600", width=2)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["trend_wave"], name="🔵 Trend", line=dict(color="#00BFFF", width=2)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["dom_wave"], name="🟣 Dom", line=dict(color="#D500F9", width=2)), row=2, col=1)
+    fig.add_trace(go.Scatter(x=df.index, y=df["struct_wave"], name="⚪ Struct", line=dict(color="#FFFFFF", width=2)), row=2, col=1)
     fig.add_hline(y=80, line_color="rgba(0,100,0,0.5)", row=2, col=1, annotation_text="Super Bull")
     fig.add_hline(y=40, line_dash="dash", line_color="rgba(0,255,0,0.3)", row=2, col=1)
     fig.add_hline(y=0, line_dash="dot", line_color="gray", row=2, col=1)
     fig.add_hline(y=-40, line_dash="dash", line_color="rgba(255,0,0,0.3)", row=2, col=1)
     fig.add_hline(y=-80, line_color="rgba(139,0,0,0.5)", row=2, col=1, annotation_text="Super Bear")
-
-    # ── Row 3: LPM Smart Money ──
     if has_lpm:
         lpm_color = "#00ff88" if df["lpm_momentum"].iloc[-1] >= 0 else "#ff3860"
-        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_norm"], name="LPM Norm",
-                                 line=dict(color=lpm_color, width=2)), row=3, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_confidence"], name="Confidence",
-                                 line=dict(color="rgba(255,255,255,0.6)", width=1)), row=3, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_smooth_trend"], name="LPM Trend",
-                                 line=dict(color="rgba(255,255,0,0.3)", width=1)), row=3, col=1)
-
-        abs_buy_idx = df.index[df["buy_absorption"]]
-        abs_sell_idx = df.index[df["sell_absorption"]]
-        if len(abs_buy_idx) > 0:
-            fig.add_trace(go.Scatter(x=abs_buy_idx, y=[5]*len(abs_buy_idx), mode="markers",
-                                     marker=dict(color="aqua", size=8, symbol="circle"),
-                                     name="Buy Absorb"), row=3, col=1)
-        if len(abs_sell_idx) > 0:
-            fig.add_trace(go.Scatter(x=abs_sell_idx, y=[95]*len(abs_sell_idx), mode="markers",
-                                     marker=dict(color="orange", size=8, symbol="circle"),
-                                     name="Sell Absorb"), row=3, col=1)
-
-        bull_idx = df.index[df["bull_div"]]
-        bear_idx = df.index[df["bear_div"]]
-        if len(bull_idx) > 0:
-            fig.add_trace(go.Scatter(x=bull_idx, y=[10]*len(bull_idx), mode="markers",
-                                     marker=dict(color="lime", size=10, symbol="triangle-up"),
-                                     name="Bull Div"), row=3, col=1)
-        if len(bear_idx) > 0:
-            fig.add_trace(go.Scatter(x=bear_idx, y=[90]*len(bear_idx), mode="markers",
-                                     marker=dict(color="red", size=10, symbol="triangle-down"),
-                                     name="Bear Div"), row=3, col=1)
-
+        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_norm"], name="LPM Norm", line=dict(color=lpm_color, width=2)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_confidence"], name="Confidence", line=dict(color="rgba(255,255,255,0.6)", width=1)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=df.index, y=df["lpm_smooth_trend"], name="LPM Trend", line=dict(color="rgba(255,255,0,0.3)", width=1)), row=3, col=1)
+        abs_buy = df.index[df["buy_absorption"]]
+        abs_sell = df.index[df["sell_absorption"]]
+        if len(abs_buy): fig.add_trace(go.Scatter(x=abs_buy, y=[5]*len(abs_buy), mode="markers", marker=dict(color="aqua", size=8), name="Buy Absorb"), row=3, col=1)
+        if len(abs_sell): fig.add_trace(go.Scatter(x=abs_sell, y=[95]*len(abs_sell), mode="markers", marker=dict(color="orange", size=8), name="Sell Absorb"), row=3, col=1)
+        bull = df.index[df["bull_div"]]
+        bear = df.index[df["bear_div"]]
+        if len(bull): fig.add_trace(go.Scatter(x=bull, y=[10]*len(bull), mode="markers", marker=dict(color="lime", size=10, symbol="triangle-up"), name="Bull Div"), row=3, col=1)
+        if len(bear): fig.add_trace(go.Scatter(x=bear, y=[90]*len(bear), mode="markers", marker=dict(color="red", size=10, symbol="triangle-down"), name="Bear Div"), row=3, col=1)
         fig.add_hline(y=0, line_color="rgba(128,128,128,0.5)", row=3, col=1)
         fig.add_hline(y=50, line_dash="dot", line_color="rgba(128,128,128,0.7)", row=3, col=1)
         fig.add_hline(y=75, line_dash="dash", line_color="rgba(0,255,0,0.5)", row=3, col=1, annotation_text="Strong Accum")
         fig.add_hline(y=90, line_dash="dash", line_color="rgba(255,165,0,0.5)", row=3, col=1, annotation_text="Exhausted")
-
-    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V8.3",
+    fig.update_layout(title=f"{ticker} — Aulsome Matrix Pro V8.5",
                       template="plotly_dark", height=1000 if has_lpm else 800,
                       xaxis_rangeslider_visible=False, showlegend=True,
                       paper_bgcolor="#0a0a0a", plot_bgcolor="#0a0a0a")
     return fig
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 8. MAIN APP (Clean Sidebar with Improvements)
+# 9. MAIN APP – Sederhana & Fokus
 # ──────────────────────────────────────────────────────────────────────────────
 def main():
     init_state()
-    st.title("🌊 Aulsome Matrix Pro V8.3")
-    st.caption("Aul Wave + LPM Smart Money Tracker PRO v6 | 645 Crypto | Clean & Fast")
+    st.title("🌊 Aulsome Matrix Pro V8.5")
+    st.caption("Confluence + LPM Smart Money | Hybrid Data (CCXT & Yahoo)")
 
     with st.sidebar:
         st.header("⚙️ Configuration")
-        market = st.selectbox("Market", ["IHSG", "Crypto"])
-        timeframe = st.selectbox("Timeframe", ["1d", "4h", "1h", "15m"], index=0)
-        mode = st.radio("Scan Mode", ["Confluence", "Aul Wave Only", "LPM Smart Money"], index=0)
-
+        market = st.selectbox("Market", ["Crypto", "IHSG"], index=0)  # default Crypto
+        timeframe = st.selectbox("Timeframe", ["1d", "4h", "1h"], index=0)
+        mode = st.radio("Scan Mode", ["Confluence", "LPM Smart Money"], index=0)
         st.markdown("---")
-        st.subheader("🌊 Aul Wave Filter")
-        aul_enabled = st.checkbox("Aktifkan Aul Wave Filter", value=False, key="aul_en")
-        aul_min, aul_max = st.slider("Range Bull Score", -100, 100, (0, 100), 5, key="aul_range")
-
+        st.subheader("🎯 Filter")
+        if mode == "Confluence":
+            min_score = st.slider("Min Confluence Score", 0, 100, 50, 5)
+        else:
+            min_score = st.slider("Min LPM Score", 0, 100, 50, 5)
         st.markdown("---")
-        st.subheader("📈 Volume Filter")
-        min_inflow = st.slider("Min Inflow Ratio", 0.0, 3.0, 0.0, 0.1, help="0 = tidak ada filter")
-
-        st.markdown("---")
-        st.subheader("🧠 LPM Settings")
+        st.subheader("🧠 LPM Settings (only for LPM mode)")
         lpm_big = st.slider("Big Money Threshold", 0.5, 5.0, 1.5, 0.1, key="lpm_big")
         lpm_exhaust = st.slider("Exhaustion Level", 50, 100, 90, 1, key="lpm_ex")
         lpm_params = {"big_vol_mult": float(lpm_big), "exhaust_level": float(lpm_exhaust)}
-
-        st.markdown("---")
-        st.subheader("🎯 Score Thresholds")
-        thresholds = {"conf": st.slider("Min Confluence", 0, 100, 65, 5)}
-        if mode == "LPM Smart Money":
-            thresholds["lpm"] = st.slider("Min LPM Score", 0, 100, 60, 5)
-
         st.markdown("---")
         st.subheader("📝 Custom Tickers (Optional)")
-        custom_tickers = st.text_area("Paste tickers (spasi/newline)", placeholder="BTC\nETH\nSOL", height=80, key="custom_tickers")
+        custom_tickers = st.text_area("Paste tickers", placeholder="BTC\nETH\nSOL", height=80, key="custom")
         use_custom = st.checkbox("Use Custom Tickers", value=False, key="use_custom")
-
         st.markdown("---")
-        st.subheader("🌐 Yahoo Screener (Optional)")
-        use_yahoo = st.checkbox("Fetch from Yahoo Crypto Screener", value=False, key="use_yahoo")
-        st.caption("Requires `pip install yahooquery`. Fetches top 250 crypto.")
-
-        st.markdown("---")
-        universe_size = st.slider("Universe Size", 50, 800, 200, 50)
+        universe_size = st.slider("Universe Size", 5, 300, 50, 25)
 
         if st.button("🚀 RUN SCAN", use_container_width=True, type="primary"):
-            tickers = []
+            # Determine ticker list
             if use_custom and custom_tickers.strip():
                 tickers = [t.strip().upper() for t in custom_tickers.replace(",", " ").split() if t.strip()]
                 st.info(f"📋 {len(tickers)} custom tickers")
-            elif use_yahoo:
-                try:
-                    from yahooquery import Screener
-                    s = Screener()
-                    data = s.get_screeners('all_cryptocurrencies_us', count=250)
-                    quotes = data.get('all_cryptocurrencies_us', {}).get('quotes', [])
-                    tickers = [q['symbol'].replace('-USD', '') for q in quotes if 'symbol' in q]
-                    st.info(f"🌐 {len(tickers)} from Yahoo")
-                except Exception as e:
-                    st.warning(f"Yahoo failed: {e}. Fallback to default.")
-                    tickers_raw = IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA
-                    tickers = tickers_raw.split()[:universe_size]
             else:
-                # Cegah error jika custom tickers kosong dan use_custom dicentang
-                if use_custom:
-                    st.error("Custom tickers kosong! Harap isi atau matikan checkbox.")
-                    return
-                tickers_raw = IHSG_MEGA if market == "IHSG" else CRYPTO_MEGA
-                tickers = tickers_raw.split()[:universe_size]
+                if market == "IHSG":
+                    tickers = IHSG_MEGA.split()[:universe_size]
+                else:
+                    base_tickers = CRYPTO_MEGA.split()
+                    # Filter valid crypto tickers only
+                    valid = get_valid_crypto_tickers(base_tickers[:universe_size])
+                    if not valid:
+                        st.warning("⚠️ Tidak bisa mengambil daftar pasar Binance. Menggunakan universe mentah.")
+                        tickers = base_tickers[:universe_size]
+                    else:
+                        tickers = valid[:universe_size]
+                        st.info(f"🔍 {len(tickers)} ticker crypto valid dari Binance")
 
-            use_lpm = (mode == "LPM Smart Money")
-            # Konfigurasi bull_range jika filter Aul diaktifkan, jika tidak None
-            bull_range = (aul_min, aul_max) if aul_enabled else None
             with st.spinner(f"Scanning {len(tickers)} tickers..."):
                 st.session_state["results"] = run_scan(
-                    tickers, timeframe, market, thresholds, mode,
-                    use_lpm=use_lpm, lpm_params=lpm_params,
-                    bull_range=bull_range, min_inflow=min_inflow
+                    tickers, timeframe, market, mode,
+                    lpm_params=lpm_params if mode == "LPM Smart Money" else None,
+                    min_conf=min_score if mode == "Confluence" else 0,
+                    min_lpm=min_score if mode == "LPM Smart Money" else 0
                 )
                 st.session_state["scan_triggered"] = True
                 st.session_state["last_scan_time"] = datetime.now().strftime("%H:%M:%S")
@@ -696,14 +643,15 @@ def main():
     if st.session_state["scan_triggered"]:
         results = st.session_state["results"]
         if not results:
-            st.warning("❌ Tidak ada ticker yang lolos. Longgarkan threshold atau cek koneksi.")
+            succ, fail = st.session_state.get("fetch_stats", (0, 0))
+            st.warning(f"❌ Tidak ada ticker yang lolos. Data berhasil: {succ}, gagal: {fail}. Coba longgarkan threshold atau periksa koneksi.")
             return
 
-        sort_map = {"Confluence": "Confluence", "Aul Wave Only": "Bull Score", "LPM Smart Money": "LPM Score"}
-        sort_key = sort_map.get(st.session_state["scan_mode"], "Confluence")
+        sort_key = "Confluence" if st.session_state["scan_mode"] == "Confluence" else "LPM Score"
         results = sorted(results, key=lambda x: x.get(sort_key, 0), reverse=True)
 
-        st.success(f"✅ {len(results)} lolos | Mode: **{st.session_state['scan_mode']}** | {st.session_state['last_scan_time']}")
+        succ, fail = st.session_state.get("fetch_stats", (0, 0))
+        st.success(f"✅ {len(results)} lolos | Data ✅ {succ} ❌ {fail} | Mode: {st.session_state['scan_mode']} | {st.session_state['last_scan_time']}")
 
         df_display = pd.DataFrame([{k: v for k, v in r.items() if not k.startswith("_")} for r in results])
 
@@ -711,9 +659,9 @@ def main():
         if has_lpm:
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("Total", len(results))
-            c2.metric("🔥 Sniper", sum(1 for r in results if r.get("Confluence", 0) >= 85))
-            c3.metric("🎯 MAX BUY", sum(1 for r in results if r.get("Conv") == "MAX BUY"))
-            c4.metric("🧠 LPM SNIPER", sum(1 for r in results if r.get("LPM Score", 0) >= 90))
+            c2.metric("🔥 Sniper (Conf)", sum(1 for r in results if r.get("Confluence", 0) >= 85))
+            c3.metric("🧠 LPM Sniper", sum(1 for r in results if r.get("LPM Score", 0) >= 90))
+            c4.metric("🎯 MAX BUY", sum(1 for r in results if r.get("Conv") == "MAX BUY"))
         else:
             c1, c2, c3 = st.columns(3)
             c1.metric("Total", len(results))
@@ -729,32 +677,29 @@ def main():
         selected = st.selectbox("Pilih Ticker", [r["Ticker"] for r in results])
         sel = next(r for r in results if r["Ticker"] == selected)
 
-        st.markdown("#### 🌊 Aul Wave Status")
+        st.markdown("#### 🌊 Aul Wave")
         w1, w2, w3, w4, w5 = st.columns(5)
         w1.metric("🟡 Vol", f"{sel['🟡 Vol']}")
         w2.metric("🔵 Trend", f"{sel['🔵 Trend']}")
         w3.metric("🟣 Dom", f"{sel['🟣 Dom']}")
         w4.metric("⚪ Struct", f"{sel['⚪ Struct']}")
-        w5.metric("🎯 Conv", sel["Conv"])
+        w5.metric("Conv", sel["Conv"])
 
-        st.markdown("#### 📊 Scores")
         cA, cB = st.columns(2)
         cA.metric("Confluence", f"{sel['Confluence']}/100", sel["Grade"])
         if has_lpm and "LPM Score" in sel:
-            cB.metric("🧠 LPM Score", f"{sel['LPM Score']}/100", sel["LPM Grade"])
+            cB.metric("LPM Score", f"{sel['LPM Score']}/100", sel.get("LPM Grade", ""))
 
         if has_lpm and "LPM Score" in sel:
-            st.markdown("#### 🧠 LPM Status")
-            lpm_cols = st.columns(6)
-            lpm_cols[0].metric("LPM Norm", f"{sel.get('LPM Norm', 'N/A')}")
-            lpm_cols[1].metric("Confidence", f"{sel.get('LPM Conf', 'N/A')}%")
-            lpm_cols[2].metric("State", sel.get("LPM State", "N/A"))
-            lpm_cols[3].metric("BigMoney", sel.get("BigMoney", "NO"))
-            lpm_cols[4].metric("BuyAbs", sel.get("BuyAbs", "NO"))
-            lpm_cols[5].metric("BullDiv", sel.get("BullDiv", "NO"))
-            with st.expander("🧠 LPM Breakdown"): st.json(sel.get("_lpm_bd", {}))
+            with st.expander("🧠 LPM Details"):
+                lpm_cols = st.columns(4)
+                lpm_cols[0].metric("State", sel.get("LPM State", "N/A"))
+                lpm_cols[1].metric("BuyAbs", sel.get("BuyAbs", "NO"))
+                lpm_cols[2].metric("BullDiv", sel.get("BullDiv", "NO"))
+                st.json(sel.get("_lpm_bd", {}))
 
-        with st.expander("📊 Confluence Breakdown"): st.json(sel["_conf_bd"])
+        with st.expander("📊 Confluence Breakdown"):
+            st.json(sel["_conf_bd"])
 
         entry, sl, tp1, tp2, rr = sel["_trade_plan"]
         st.info(f"💰 Entry `{entry:.4f}` | SL `{sl:.4f}` | TP1 `{tp1:.4f}` | TP2 `{tp2:.4f}` | RR 1:{rr}")
